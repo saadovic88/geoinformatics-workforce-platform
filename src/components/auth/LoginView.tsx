@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { Lock, Mail, Globe, CheckCircle, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Globe, LockKeyhole, Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { CompanyLogo } from '../common/CompanyLogo';
 import { supabase } from '../../lib/supabase';
 
 export const LoginView: React.FC = () => {
   const { login, users, setCurrentUser } = useAuth();
   const { t, language, setLanguage, isRtl } = useLanguage();
-
   const [username, setUsername] = useState('dr.badawy');
   const [password, setPassword] = useState('••••••••');
   const [rememberMe, setRememberMe] = useState(true);
@@ -18,226 +17,41 @@ export const LoginView: React.FC = () => {
   const [resetSuccess, setResetSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
+    e.preventDefault(); setErrorMessage('');
     const success = await login(username, password);
-    if (!success) {
-      setErrorMessage(
-        isRtl
-          ? 'بيانات الدخول غير صحيحة، يرجى التحقق من اسم المستخدم أو البريد الإلكتروني.'
-          : 'Invalid credentials. Please enter a valid username, email, or employee code.'
-      );
-    }
+    if (!success) setErrorMessage(isRtl ? 'بيانات الدخول غير صحيحة. يرجى التحقق من اسم المستخدم أو البريد الإلكتروني.' : 'Invalid credentials. Please enter a valid username, email, or employee code.');
   };
-
-  const handleQuickDemoLogin = (userId: string) => {
-    const target = users.find((u) => u.id === userId);
-    if (target) {
-      setCurrentUser(target);
-    }
-  };
-
-  const handleForgotSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setResetSuccess(true);
-    setTimeout(() => {
-      setResetSuccess(false);
-      setForgotModal(false);
-    }, 2000);
-  };
+  const handleQuickDemoLogin = (userId: string) => { const target = users.find((u) => u.id === userId); if (target) setCurrentUser(target); };
+  const handleForgotSubmit = (e: React.FormEvent) => { e.preventDefault(); setResetSuccess(true); setTimeout(() => { setResetSuccess(false); setForgotModal(false); }, 2000); };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 selection:bg-blue-600 selection:text-white">
-      {/* Top right language switch */}
-      <div className="absolute top-4 right-4">
-        <button
-          onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition"
-        >
-          <Globe className="w-3.5 h-3.5 text-blue-400" />
-          <span>{language === 'en' ? 'العربية' : 'English'}</span>
-        </button>
-      </div>
+    <main dir={isRtl ? 'rtl' : 'ltr'} className="relative min-h-screen overflow-hidden bg-[#f8fbff] px-4 py-8 text-slate-900 selection:bg-blue-700 selection:text-white sm:px-6 lg:px-8">
+      <div aria-hidden="true" className="absolute inset-0 geo-grid opacity-70" />
+      <div aria-hidden="true" className="absolute -left-24 top-20 h-80 w-80 rounded-full bg-sky-200/45 blur-3xl" />
+      <div aria-hidden="true" className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-blue-100/80 blur-3xl" />
+      <div aria-hidden="true" className="absolute left-[8%] top-[17%] h-24 w-24 rounded-full border border-blue-300/55" />
+      <div aria-hidden="true" className="absolute bottom-[12%] right-[8%] h-40 w-40 rounded-full border border-sky-200" />
 
-      <div className="max-w-md w-full space-y-6">
-        {/* Brand Header */}
-        <div className="text-center space-y-3">
-          <div className="flex justify-center">
-            <CompanyLogo size="xl" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-white tracking-tight">GEOINFORMATICS</h1>
-            <p className="text-xs text-blue-300/80 font-medium max-w-xs mx-auto mt-1">
-              {isRtl
-                ? 'منظومة إدارة القوى العاملة، الحضور والسياج الجغرافي، ومؤشرات الأداء'
-                : 'Workforce, Geofencing, Dual Approval Leaves & KPI Performance Platform'}
-            </p>
-          </div>
-        </div>
+      <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/85 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:right-7 sm:top-7"><Globe className="h-4 w-4 text-blue-600" /><span>{language === 'en' ? 'العربية' : 'English'}</span></button>
 
-        {/* Login Form Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-xs text-slate-300">
-          <div className="border-b border-slate-800 pb-3">
-            <h2 className="text-base font-bold text-white">{t('loginTitle')}</h2>
-            <p className="text-slate-400 text-[11px]">{t('loginSubtitle')}</p>
-          </div>
+      <section className="relative z-[1] mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center py-10">
+        <header className="mb-7 text-center animate-[fade-up_.6s_ease-out_both]"><div className="mb-4 flex justify-center"><CompanyLogo size="xl" /></div><p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.24em] text-blue-700">GIS workforce platform</p><h1 className="text-3xl font-black tracking-[-0.045em] text-[#102a4c]">GEOINFORMATICS</h1><p className="mx-auto mt-2 max-w-sm text-xs font-medium leading-5 text-slate-500">{isRtl ? 'منظومة موحّدة لإدارة القوى العاملة والحضور والسياج الجغرافي ومؤشرات الأداء.' : 'A unified workspace for workforce operations, geofencing, attendance, and performance.'}</p></header>
 
-          {errorMessage && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs font-medium">
-              {errorMessage}
-            </div>
-          )}
-
+        <div className="animate-[fade-up_.6s_.1s_ease-out_both] rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_20px_60px_-24px_rgba(15,50,90,.3)] sm:p-8">
+          <div className="mb-6 flex items-start justify-between border-b border-slate-100 pb-5"><div><h2 className="text-lg font-extrabold tracking-tight text-slate-800">{t('loginTitle')}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{t('loginSubtitle')}</p></div><span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><ShieldCheck className="h-5 w-5" /></span></div>
+          {errorMessage && <div role="alert" className="mb-5 flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold leading-5 text-rose-700"><span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-rose-500" />{errorMessage}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="font-semibold text-slate-300 block mb-1">
-                {t('usernameOrEmail')}
-              </label>
-              <div className="relative">
-                <Mail className={`w-4 h-4 text-slate-500 absolute top-3 ${isRtl ? 'right-3' : 'left-3'}`} />
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g. dr.badawy or m.badawy@geoinformatics.com"
-                  className={`w-full py-2.5 ${
-                    isRtl ? 'pr-9 pl-3' : 'pl-9 pr-3'
-                  } rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-medium focus:outline-hidden focus:border-blue-500`}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="font-semibold text-slate-300">{t('password')}</label>
-                <button
-                  type="button"
-                  onClick={() => setForgotModal(true)}
-                  className="text-blue-400 hover:text-blue-300 text-[11px]"
-                >
-                  {t('forgotPassword')}
-                </button>
-              </div>
-              <div className="relative">
-                <Lock className={`w-4 h-4 text-slate-500 absolute top-3 ${isRtl ? 'right-3' : 'left-3'}`} />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full py-2.5 ${
-                    isRtl ? 'pr-9 pl-3' : 'pl-9 pr-3'
-                  } rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-medium focus:outline-hidden focus:border-blue-500`}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-blue-600 focus:ring-0"
-                />
-                <span className="text-slate-400 text-xs">{t('rememberMe')}</span>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2"
-            >
-              <span>{t('signIn')}</span>
-              <ArrowRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
-            </button>
+            <div><label htmlFor="login-identity" className="mb-1.5 block text-xs font-bold text-slate-700">{t('usernameOrEmail')}</label><div className="relative"><Mail className={`pointer-events-none absolute top-3 h-4 w-4 text-slate-400 ${isRtl ? 'right-3' : 'left-3'}`} /><input id="login-identity" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} placeholder="dr.badawy or name@company.com" className={`w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 ${isRtl ? 'pr-10 pl-3 text-right' : 'pl-10 pr-3'}`} /></div></div>
+            <div><div className="mb-1.5 flex items-center justify-between gap-3"><label htmlFor="login-password" className="text-xs font-bold text-slate-700">{t('password')}</label><button type="button" onClick={() => setForgotModal(true)} className="text-[11px] font-bold text-blue-700 transition hover:text-blue-900 focus:outline-none focus:underline">{t('forgotPassword')}</button></div><div className="relative"><LockKeyhole className={`pointer-events-none absolute top-3 h-4 w-4 text-slate-400 ${isRtl ? 'right-3' : 'left-3'}`} /><input id="login-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className={`w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 ${isRtl ? 'pr-10 pl-3 text-right' : 'pl-10 pr-3'}`} /></div></div>
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500" />{t('rememberMe')}</label>
+            <button type="submit" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-[#1558ad] py-3 text-xs font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(21,88,173,.8)] transition hover:bg-[#10488f] focus:outline-none focus:ring-4 focus:ring-blue-200 active:translate-y-px"><span>{t('signIn')}</span><ArrowRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isRtl ? 'rotate-180 group-hover:-translate-x-0.5' : ''}`} /></button>
           </form>
-
-          {/* Quick Demo Role Clickers are intentionally unavailable with production authentication. */}
-          {!supabase && <div className="pt-4 border-t border-slate-800 space-y-2">
-            <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">
-              {isRtl ? 'دخول سريع لتجربة الأدوار (1-Click Demo):' : 'Quick 1-Click Role Login Demo:'}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('emp_badawy')}
-                className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-start text-blue-400 font-semibold border border-slate-800 truncate"
-              >
-                {isRtl ? '1. د. محمد بدوي (الرئيس التنفيذي)' : '1. Dr. Badawy (CEO)'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('emp_omar')}
-                className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-start text-emerald-400 font-semibold border border-slate-800 truncate"
-              >
-                {isRtl ? '2. م. محمد عمر (مؤسس شريك)' : '2. Eng. Omar (Co-Founder)'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('emp_ghada')}
-                className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-start text-purple-400 font-semibold border border-slate-800 truncate"
-              >
-                {isRtl ? '3. د. غادة (مؤسس شريك)' : '3. Dr. Ghada (Co-Founder)'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('emp_barghouth')}
-                className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800 text-start text-amber-400 font-semibold border border-slate-800 truncate"
-              >
-                {isRtl ? '4. م. سعد برغوث (مدير GIS)' : '4. Saad (GIS Manager)'}
-              </button>
-            </div>
-          </div>}
+          {!supabase && <div className="mt-6 border-t border-slate-100 pt-5"><p className="mb-2.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{isRtl ? 'دخول تجريبي سريع' : 'Quick demo access'}</p><div className="grid grid-cols-2 gap-2">{[['emp_badawy', isRtl ? 'د. محمد بدوي' : 'Dr. Badawy', 'text-blue-700'], ['emp_omar', isRtl ? 'م. محمد عمر' : 'Eng. Omar', 'text-emerald-700'], ['emp_ghada', isRtl ? 'د. غادة' : 'Dr. Ghada', 'text-violet-700'], ['emp_barghouth', isRtl ? 'م. سعد برغوث' : 'Saad, GIS Manager', 'text-amber-700']].map(([id, name, tone]) => <button key={id} type="button" onClick={() => handleQuickDemoLogin(id)} className={`rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-start text-[11px] font-bold ${tone} transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400`}>{name}</button>)}</div></div>}
         </div>
-      </div>
-
-      {/* Forgot Password Modal */}
-      {forgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 text-xs text-slate-300 space-y-4">
-            <h3 className="text-base font-bold text-white">{t('resetPassword')}</h3>
-            <p className="text-slate-400 leading-relaxed">
-              {isRtl
-                ? 'أدخل بريدك الإلكتروني المؤسسي لتلقي تعليمات ورابط إعادة تعيين كلمة المرور.'
-                : 'Enter your work email address to receive password reset instructions.'}
-            </p>
-
-            {resetSuccess ? (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-center font-bold">
-                {isRtl ? 'تم إرسال رابط إعادة الضبط إلى بريدك الإلكتروني المسجل.' : 'Reset link dispatched to registered email.'}
-              </div>
-            ) : (
-              <form onSubmit={handleForgotSubmit} className="space-y-3">
-                <input
-                  type="email"
-                  required
-                  placeholder="name@geoinformatics.com"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs"
-                />
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setForgotModal(false)}
-                    className="px-4 py-2 text-slate-400 hover:text-white"
-                  >
-                    {t('cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold"
-                  >
-                    {isRtl ? 'إرسال التعليمات' : 'Send Instructions'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        <footer className="mt-6 flex items-center justify-center gap-2 text-[11px] font-medium text-slate-500"><MapPin className="h-3.5 w-3.5 text-blue-600" />{isRtl ? 'دخول آمن ومدار لموظفي جيوإنفورماتيكس' : 'Secure, managed access for Geoinformatics teams'}</footer>
+      </section>
+      {forgotModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="reset-title"><div className="w-full max-w-sm animate-[fade-up_.25s_ease-out_both] rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"><div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Mail className="h-5 w-5" /></div><h3 id="reset-title" className="text-lg font-extrabold text-slate-800">{t('resetPassword')}</h3><p className="mt-1.5 text-xs leading-5 text-slate-500">{isRtl ? 'أدخل بريدك الإلكتروني المؤسسي لتلقّي تعليمات ورابط إعادة تعيين كلمة المرور.' : 'Enter your work email address to receive password reset instructions.'}</p>{resetSuccess ? <div className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4 shrink-0" />{isRtl ? 'تم إرسال رابط إعادة الضبط إلى بريدك المسجل.' : 'Reset link dispatched to your registered email.'}</div> : <form onSubmit={handleForgotSubmit} className="mt-5 space-y-3"><input type="email" required placeholder="name@geoinformatics.com" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" /><div className="flex justify-end gap-2 pt-1"><button type="button" onClick={() => setForgotModal(false)} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300">{t('cancel')}</button><button type="submit" className="rounded-lg bg-[#1558ad] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#10488f] focus:outline-none focus:ring-4 focus:ring-blue-200">{isRtl ? 'إرسال التعليمات' : 'Send Instructions'}</button></div></form>}</div></div>}
+      <style>{`@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .geo-grid { background-image: linear-gradient(rgba(37,99,235,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,.07) 1px, transparent 1px); background-size: 36px 36px; mask-image: radial-gradient(ellipse 72% 68% at 50% 44%, black, transparent); }`}</style>
+    </main>
   );
 };
