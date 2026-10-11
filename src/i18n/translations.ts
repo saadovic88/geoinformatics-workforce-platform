@@ -300,7 +300,7 @@ export const translations = {
     navTasks: 'المهام والمشاريع',
     navMyTasks: 'مهامي المكلف بها',
     navTeamTasks: 'مهام الفريق',
-    navKanban: 'لوحة كانبان',
+    navKanban: 'لوحة المهام',
     navTaskInsights: 'تحليلات أداء المهام (Insights)',
     navLeaves: 'الإجازات والأذونات',
     navLeaveBalances: 'أرصدة الإجازات',
