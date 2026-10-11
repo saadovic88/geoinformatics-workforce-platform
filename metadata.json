@@ -1,0 +1,8 @@
+{
+  "name": "Geoinformatics Workforce Platform",
+  "description": "Comprehensive workforce management platform for Geoinformatics featuring attendance, geofencing, dual approval leaves, tasks, and KPI performance.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
