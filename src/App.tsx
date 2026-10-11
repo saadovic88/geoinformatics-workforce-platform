@@ -23,6 +23,7 @@ import { ReportsCenter } from './components/reports/ReportsCenter';
 import { RolesPermissionsView } from './components/admin/RolesPermissionsView';
 import { AutomationsView } from './components/admin/AutomationsView';
 import { CompanySettingsView } from './components/admin/CompanySettingsView';
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 const MainAppContent: React.FC = () => {
   const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary } = useAuth();
@@ -103,7 +104,7 @@ const MainAppContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
       {/* Sidebar */}
       <Sidebar
         activePage={activePage}
@@ -121,7 +122,7 @@ const MainAppContent: React.FC = () => {
         />
 
         {/* Scrollable Viewport */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8">
           <div className="max-w-7xl mx-auto">{renderActiveView()}</div>
         </main>
       </div>
@@ -150,6 +151,7 @@ export default function App() {
         <AuthProvider>
           <DataProvider>
             <MainAppContent />
+            <PwaInstallPrompt />
           </DataProvider>
         </AuthProvider>
       </LanguageProvider>

@@ -46,19 +46,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 py-2.5 transition-colors">
-      <div className="flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 py-2.5 transition-colors">
+      <div className="flex min-w-0 items-center justify-between gap-1.5 sm:gap-4">
         {/* Left: Mobile Toggle & Brand */}
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleSidebar}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 lg:hidden"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 lg:hidden"
             aria-label="Toggle Navigation"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <CompanyLogo size="md" showText={true} />
+          <div className="hidden sm:block"><CompanyLogo size="md" showText={true} /></div>
+          <div className="sm:hidden"><CompanyLogo size="sm" showText={false} /></div>
         </div>
 
         {/* Center: Live Attendance Chip & Quick Actions */}
@@ -103,9 +104,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
         </div>
 
         {/* Right: Demo Switcher, Theme Toggle, Language, Notifications, User Menu */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2.5">
           {/* Quick Demo Role Switcher Dropdown */}
-          <div className="relative">
+          <div className="relative hidden md:block">
             <button
               onClick={() => setShowSwitchMenu(!showSwitchMenu)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 transition"
@@ -163,7 +164,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition"
+            className="grid h-10 w-10 place-items-center rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
             title={isDark ? (isRtl ? 'التبديل إلى الوضع الفاتح' : 'Switch to Light Mode') : (isRtl ? 'التبديل إلى الوضع الداكن' : 'Switch to Dark Mode')}
             aria-label="Toggle Theme"
           >
@@ -177,18 +178,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           {/* Language Switcher */}
           <button
             onClick={toggleLanguage}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition"
+            className="flex h-10 w-10 items-center justify-center gap-1 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition focus:outline-none focus:ring-2 focus:ring-blue-500 sm:h-auto sm:w-auto sm:px-2.5 sm:py-1.5"
             title="Switch Language (English / العربية)"
           >
             <Globe className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span className="font-semibold">{language === 'en' ? 'العربية' : 'English'}</span>
+            <span className="hidden font-semibold sm:inline">{language === 'en' ? 'العربية' : 'English'}</span>
           </button>
 
           {/* Notifications Dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowNotifMenu(!showNotifMenu)}
-              className="relative p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="relative grid h-10 w-10 place-items-center rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -203,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
               <div
                 className={`absolute ${
                   isRtl ? 'left-0' : 'right-0'
-                } mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in`}
+                } mt-2 w-[calc(100vw-1.5rem)] max-w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in`}
               >
                 <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -269,7 +270,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-700"
+              className="flex h-10 items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <UserAvatar
                 src={currentUser.avatarUrl}
