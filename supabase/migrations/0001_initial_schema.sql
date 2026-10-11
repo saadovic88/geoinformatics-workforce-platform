@@ -123,6 +123,9 @@ create or replace function public.is_manager_of(target uuid) returns boolean lan
 -- SECURITY DEFINER helpers avoid recursive RLS evaluation between parent records and child tables.
 create or replace function public.is_task_member(target_task_id uuid) returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from task_assignees where task_id = target_task_id and employee_id = auth.uid()); $$;
 create or replace function public.is_leave_approver(target_request_id uuid) returns boolean language sql stable security definer set search_path = public as $$ select exists (select 1 from leave_approval_steps where leave_request_id = target_request_id and approver_id = auth.uid()); $$;
+-- Used during sign-in so usernames and employee codes work before a session exists.
+create or replace function public.resolve_login_email(identity_input text) returns text language sql stable security definer set search_path = public as $$ select p.email from public.profiles p where lower(p.username) = lower(trim(identity_input)) or lower(p.employee_code) = lower(trim(identity_input)) or lower(p.email) = lower(trim(identity_input)) limit 1; $$;
+revoke all on function public.resolve_login_email(text) from public; grant execute on function public.resolve_login_email(text) to anon, authenticated;
 create trigger schedules_updated before update on public.work_schedules for each row execute function public.set_updated_at();
 create trigger profiles_updated before update on public.profiles for each row execute function public.set_updated_at();
 create trigger zones_updated before update on public.geofence_zones for each row execute function public.set_updated_at();

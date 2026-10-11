@@ -172,9 +172,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (usernameOrEmail: string, pass: string): Promise<boolean> => {
     if (supabase) {
-      // Supabase Auth authenticates with email. The profile username remains available for display/search.
-      const { data: lookup } = await supabase.from('profiles').select('email').eq('username', usernameOrEmail.trim().toLowerCase()).maybeSingle();
-      const email = lookup?.email || usernameOrEmail.trim();
+      // Supabase Auth signs in with an email. Anonymous clients cannot query
+      // profiles directly under RLS, so the narrowly-scoped RPC resolves a
+      // username or employee code without exposing the profiles table.
+      const identity = usernameOrEmail.trim();
+      const isEmail = identity.includes('@');
+      const { data: resolvedEmail, error: resolveError } = isEmail
+        ? { data: identity, error: null }
+        : await supabase.rpc('resolve_login_email', { identity_input: identity });
+      if (resolveError || !resolvedEmail) return false;
+      const email = resolvedEmail;
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (error || !data.user) return false;
       const [{ data: profile }, { data: directory }] = await Promise.all([
