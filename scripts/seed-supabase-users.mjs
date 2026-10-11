@@ -59,6 +59,26 @@ for (const row of users) {
   console.log(error ? `Skipped existing: ${email}` : `Created: ${email} (${roleId})`);
 }
 
+// The migration normally creates a profile via an auth.users trigger. Upsert
+// profiles here as well so a partially applied migration can be repaired safely.
+const { data: authPage, error: authError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+if (authError) throw authError;
+const authByEmail = new Map(authPage.users.map((user) => [user.email, user]));
+const profileRows = users.map((row) => {
+  const [employeeCode, username, nameEn, jobTitleEn, roleId, departmentId, email] = row;
+  const authUser = authByEmail.get(email);
+  if (!authUser) throw new Error(`Could not find Auth user for ${email}`);
+  const metadata = authUser.user_metadata || {};
+  return {
+    id: authUser.id, employee_code: employeeCode, username,
+    name_en: nameEn, name_ar: metadata.name_ar || nameEn,
+    email, job_title_en: jobTitleEn, job_title_ar: metadata.job_title_ar || jobTitleEn,
+    role_id: roleId, department_id: departmentId, joining_date: new Date().toISOString().slice(0, 10),
+  };
+});
+const { error: profileUpsertError } = await admin.from('profiles').upsert(profileRows, { onConflict: 'id' });
+if (profileUpsertError) throw profileUpsertError;
+
 const { data: profiles, error: profilesError } = await admin.from('profiles').select('id,email');
 if (profilesError) throw profilesError;
 const idByEmail = new Map(profiles.map((profile) => [profile.email, profile.id]));
