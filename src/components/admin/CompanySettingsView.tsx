@@ -1,167 +1,33 @@
 import React, { useState } from 'react';
+import { Building2, Save, CheckCircle2, ShieldCheck, MapPin, Info, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { Building, Save, CheckCircle, Shield, Globe, Bell } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+
+type Settings = { companyNameEn: string; companyNameAr: string; defaultHours: number; defaultRadius: number; dualSignatoryEnabled: boolean; wfhEnabled: boolean };
+const defaults: Settings = { companyNameEn: 'Geoinformatics GIS & Remote Sensing', companyNameAr: 'جيوانفورماتكس لنظم المعلومات الجغرافية والاستشعار عن بعد', defaultHours: 8, defaultRadius: 500, dualSignatoryEnabled: true, wfhEnabled: true };
 
 export const CompanySettingsView: React.FC = () => {
-  const { t, isRtl } = useLanguage();
-  const [companyNameEn, setCompanyNameEn] = useState('Geoinformatics GIS & Remote Sensing');
-  const [companyNameAr, setCompanyNameAr] = useState('جيوانفورماتكس لنظم المعلومات الجغرافية والاستشعار عن بعد');
-  const [defaultHours, setDefaultHours] = useState(8);
-  const [defaultRadius, setDefaultRadius] = useState(500);
-  const [dualSignatoryEnabled, setDualSignatoryEnabled] = useState(true);
-  const [wfhEnabled, setWfhEnabled] = useState(true);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
+  const { isRtl } = useLanguage();
+  const { currentUser } = useAuth();
+  const canManage = ['ceo', 'sys_admin'].includes(currentUser.roleId);
+  const [settings, setSettings] = useState<Settings>(() => { try { return { ...defaults, ...JSON.parse(localStorage.getItem('geo_company_settings') || '{}') }; } catch { return defaults; } });
+  const [notice, setNotice] = useState<'saved' | 'error' | null>(null);
+  const update = <K extends keyof Settings>(key: K, value: Settings[K]) => setSettings((prev) => ({ ...prev, [key]: value }));
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canManage) return;
+    if (!settings.companyNameEn.trim() || settings.defaultHours < 1 || settings.defaultHours > 24 || settings.defaultRadius < 50 || settings.defaultRadius > 10000) { setNotice('error'); return; }
+    localStorage.setItem('geo_company_settings', JSON.stringify(settings)); setNotice('saved'); window.setTimeout(() => setNotice(null), 3500);
   };
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Building className="w-5 h-5 text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-900">{t('navSettings')}</h1>
-          </div>
-          <p className="text-xs text-slate-500">
-            {isRtl
-              ? 'إعدادات الشركة العامة وسياسات الحضور والسياج الجغرافي والاعتمادات الثنائية.'
-              : 'Global corporate parameters, working schedules, and policy rules.'}
-          </p>
-        </div>
-      </div>
-
-      {savedSuccess && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-emerald-600" />
-          <span>{isRtl ? 'تم حفظ إعدادات الشركة بنجاح' : 'Company settings updated successfully.'}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSave} className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6 text-xs text-slate-800">
-        <div className="space-y-4">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">
-            {isRtl ? 'هوية الشركة وبيانات العلامة التجارية' : 'Company Identity & Branding'}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="font-semibold block mb-1">
-                {isRtl ? 'اسم الشركة بالإنجليزية' : 'Corporate Name (EN)'}
-              </label>
-              <input
-                type="text"
-                value={companyNameEn}
-                onChange={(e) => setCompanyNameEn(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs"
-              />
-            </div>
-            <div>
-              <label className="font-semibold block mb-1">
-                {isRtl ? 'اسم الشركة بالعربية' : 'Corporate Name (AR)'}
-              </label>
-              <input
-                type="text"
-                value={companyNameAr}
-                onChange={(e) => setCompanyNameAr(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">
-            {isRtl ? 'معايير الحضور والنطاق الجغرافي' : 'Attendance & Geofencing Parameters'}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="font-semibold block mb-1">
-                {isRtl ? 'ساعات العمل الرسمية اليومية (ساعات)' : 'Standard Daily Work Hours (Hours)'}
-              </label>
-              <input
-                type="number"
-                value={defaultHours}
-                onChange={(e) => setDefaultHours(Number(e.target.value))}
-                className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="font-semibold block mb-1">
-                {isRtl ? 'نصف قطر السياج الجغرافي المعتمد (أمتار)' : 'Geofence Validation Radius (Meters)'}
-              </label>
-              <input
-                type="number"
-                value={defaultRadius}
-                onChange={(e) => setDefaultRadius(Number(e.target.value))}
-                className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">
-            {isRtl ? 'قواعد الحوكمة والاعتماد الثنائي الإلزامي' : 'Governance & Dual Approval Rules'}
-          </h3>
-          <div className="space-y-3">
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={dualSignatoryEnabled}
-                onChange={(e) => setDualSignatoryEnabled(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-0"
-              />
-              <div>
-                <span className="font-bold text-slate-900 block">
-                  {isRtl
-                    ? 'تفعيل مسار الاعتماد الثنائي الإلزامي (م. محمد عمر و د. غادة)'
-                    : 'Enforce Mandatory Dual Signatory (Eng. Mohamed Omar & Dr. Ghada)'}
-                </span>
-                <span className="text-[11px] text-slate-500 block">
-                  {isRtl
-                    ? 'يشترط موافقة كلا المؤسسين. الرفض من أي طرف يلغي الطلب فوراً.'
-                    : 'Requires concurrence from both founders. Either rejection immediately cancels request.'}
-                </span>
-              </div>
-            </label>
-
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={wfhEnabled}
-                onChange={(e) => setWfhEnabled(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-0"
-              />
-              <div>
-                <span className="font-bold text-slate-900 block">
-                  {isRtl
-                    ? 'السماح باستثناءات العمل عن بُعد والمأموريات الميدانية'
-                    : 'Allow Remote Work & External Field Site Exception Overrides'}
-                </span>
-                <span className="text-[11px] text-slate-500 block">
-                  {isRtl
-                    ? 'الطلبات المعتمدة تلغي مخالفة الحضور خارج نطاق الـ 500 متر تلقائياً.'
-                    : 'Approved WFH/Field requests suppress outside-zone geofence penalties.'}
-                </span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-4 border-t border-slate-100">
-          <button
-            type="submit"
-            className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-2"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>{t('save')}</span>
-          </button>
-        </div>
-      </form>
-    </div>
-  );
+  const text = isRtl ? { title: 'إعدادات الشركة', subtitle: 'سياسات تشغيل المنصة. تُحفظ هذه التفضيلات محلياً في بيئة العرض الحالية.', readOnly: 'وضع القراءة فقط. يمكن للرئيس التنفيذي ومدير النظام فقط تعديل هذه السياسات.', saved: 'تم حفظ تفضيلات العرض المحلية.', error: 'راجع الاسم وحدود ساعات العمل ونطاق السياج الجغرافي.', identity: 'هوية المؤسسة', attendance: 'الحضور والسياج الجغرافي', governance: 'الحوكمة والاستثناءات', nameEn: 'اسم المؤسسة بالإنجليزية', nameAr: 'اسم المؤسسة بالعربية', hours: 'ساعات العمل القياسية يومياً', radius: 'نطاق التحقق الجغرافي (متر)', dual: 'فرض اعتماد ثنائي للإجازات', remote: 'السماح باستثناءات العمل عن بعد والمواقع الميدانية', save: 'حفظ التفضيلات' } : { title: 'Company settings', subtitle: 'Operating policy for the platform. Preferences are stored locally in this demo environment.', readOnly: 'Read-only access. Only the CEO and System Administrator can change these policies.', saved: 'Local demo preferences saved.', error: 'Review the name, daily hours, and geofence radius.', identity: 'Organization identity', attendance: 'Attendance & geofence', governance: 'Governance & exceptions', nameEn: 'Organization name (English)', nameAr: 'Organization name (Arabic)', hours: 'Standard daily work hours', radius: 'Geofence validation radius (meters)', dual: 'Require dual leave approval', remote: 'Allow remote and field-site exceptions', save: 'Save preferences' };
+  return <div className="space-y-6">
+    <header className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-6 text-white shadow-sm"><div className="absolute -right-12 -top-12 h-44 w-44 rounded-full border border-blue-400/20" /><div className="relative flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-500/20 text-blue-200"><Building2 className="h-5 w-5" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-300">Platform governance</p><h1 className="mt-1 text-xl font-bold">{text.title}</h1><p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-300">{text.subtitle}</p></div></div></header>
+    {!canManage && <Notice icon={<AlertCircle className="h-4 w-4" />} tone="amber">{text.readOnly}</Notice>}
+    {notice && <Notice icon={notice === 'saved' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />} tone={notice === 'saved' ? 'emerald' : 'rose'}>{notice === 'saved' ? text.saved : text.error}</Notice>}
+    <form onSubmit={save} className="space-y-5"><Panel icon={<Building2 className="h-4 w-4" />} title={text.identity}><div className="grid gap-4 md:grid-cols-2"><Field label={text.nameEn} value={settings.companyNameEn} disabled={!canManage} onChange={(v) => update('companyNameEn', v)} /><Field label={text.nameAr} value={settings.companyNameAr} disabled={!canManage} onChange={(v) => update('companyNameAr', v)} /></div></Panel><Panel icon={<MapPin className="h-4 w-4" />} title={text.attendance}><div className="grid gap-4 md:grid-cols-2"><Field type="number" label={text.hours} value={settings.defaultHours} disabled={!canManage} onChange={(v) => update('defaultHours', Number(v))} /><Field type="number" label={text.radius} value={settings.defaultRadius} disabled={!canManage} onChange={(v) => update('defaultRadius', Number(v))} /></div><div className="mt-5 flex gap-2 rounded-xl bg-blue-50 p-3 text-[11px] text-blue-800"><Info className="h-4 w-4 shrink-0" />Changes affect new validation decisions in this browser session; they do not alter Supabase policies or existing attendance records.</div></Panel><Panel icon={<ShieldCheck className="h-4 w-4" />} title={text.governance}><div className="grid gap-3 md:grid-cols-2"><Toggle label={text.dual} checked={settings.dualSignatoryEnabled} disabled={!canManage} onChange={(v) => update('dualSignatoryEnabled', v)} /><Toggle label={text.remote} checked={settings.wfhEnabled} disabled={!canManage} onChange={(v) => update('wfhEnabled', v)} /></div></Panel>{canManage && <div className="flex justify-end"><button className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><Save className="h-4 w-4" />{text.save}</button></div>}</form>
+  </div>;
 };
+const Notice = ({ children, icon, tone }: { children: React.ReactNode; icon: React.ReactNode; tone: 'amber' | 'emerald' | 'rose' }) => <div className={`flex gap-2 rounded-xl border p-3 text-xs ${tone === 'emerald' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : tone === 'rose' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>{icon}{children}</div>;
+const Panel = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => <section className="rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4 text-sm font-bold text-slate-900"><span className="text-blue-600">{icon}</span>{title}</div><div className="p-5">{children}</div></section>;
+const Field = ({ label, value, onChange, disabled, type = 'text' }: { label: string; value: string | number; onChange: (value: string) => void; disabled: boolean; type?: string }) => <label className="block text-xs font-semibold text-slate-700">{label}<input type={type} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100" /></label>;
+const Toggle = ({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (value: boolean) => void; disabled: boolean }) => <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-800 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-65">{label}<input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-blue-600" /></label>;

@@ -75,8 +75,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentUser, hasPermission } = useAuth();
   const { t, isRtl, language, setLanguage } = useLanguage();
 
+  const isPlatformAdmin = ['ceo', 'sys_admin'].includes(currentUser.roleId);
   const isExecutive = ['ceo', 'co_founder'].includes(currentUser.roleId);
-  const isManager = currentUser.roleId.includes('manager') || isExecutive;
+  const isManager = currentUser.roleId.includes('manager') || isExecutive || currentUser.roleId === 'sys_admin';
+  const canManageSettings = isPlatformAdmin || currentUser.roleId === 'admin_manager';
 
   const navGroups = [
     {
@@ -101,8 +103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'attendance_my' as ActivePage, label: t('navMyAttendance'), icon: Clock, show: true },
         { id: 'attendance_team' as ActivePage, label: t('navTeamAttendance'), icon: CalendarCheck, show: isManager },
-        { id: 'geofence_settings' as ActivePage, label: t('navGeofenceSettings'), icon: MapPin, show: true },
-        { id: 'schedules' as ActivePage, label: t('navSchedules'), icon: Calendar, show: true },
+        { id: 'geofence_settings' as ActivePage, label: t('navGeofenceSettings'), icon: MapPin, show: canManageSettings },
+        { id: 'schedules' as ActivePage, label: t('navSchedules'), icon: Calendar, show: canManageSettings },
       ],
     },
     {
@@ -121,8 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'leaves_requests' as ActivePage, label: t('navLeaveRequests'), icon: FileText, show: true },
         { id: 'leaves_balances' as ActivePage, label: t('navLeaveBalances'), icon: Wallet, show: true },
-        { id: 'leaves_dual_approval' as ActivePage, label: t('navDualApproval'), icon: ShieldCheck, show: true },
-        { id: 'leaves_wfh_field' as ActivePage, label: t('navWfhField'), icon: Send, show: true },
+        { id: 'leaves_dual_approval' as ActivePage, label: t('navDualApproval'), icon: ShieldCheck, show: isExecutive || isPlatformAdmin },
+        { id: 'leaves_wfh_field' as ActivePage, label: t('navWfhField'), icon: Send, show: currentUser.roleId !== 'gis_specialist' && currentUser.roleId !== 'rs_specialist' },
       ],
     },
     {
@@ -131,18 +133,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'kpi_my' as ActivePage, label: t('navMyKPI'), icon: Award, show: true },
         { id: 'kpi_team' as ActivePage, label: t('navTeamKPI'), icon: Sliders, show: isManager },
-        { id: 'kpi_reports' as ActivePage, label: t('navKPIReports'), icon: TrendingUp, show: true },
+        { id: 'kpi_reports' as ActivePage, label: t('navKPIReports'), icon: TrendingUp, show: isManager },
       ],
     },
     {
       titleEn: 'Reports & Governance',
       titleAr: 'التقارير والإدارة النظامية',
       items: [
-        { id: 'reports_center' as ActivePage, label: t('navReports'), icon: FileSpreadsheet, show: true },
-        { id: 'roles_matrix' as ActivePage, label: t('navRolesPerms'), icon: Lock, show: isExecutive || currentUser.roleId === 'admin_manager' },
-        { id: 'automations' as ActivePage, label: t('navAutomations'), icon: Cpu, show: true },
+        { id: 'reports_center' as ActivePage, label: t('navReports'), icon: FileSpreadsheet, show: isManager || isPlatformAdmin },
+        { id: 'roles_matrix' as ActivePage, label: t('navRolesPerms'), icon: Lock, show: isPlatformAdmin },
+        { id: 'automations' as ActivePage, label: t('navAutomations'), icon: Cpu, show: isPlatformAdmin || currentUser.roleId === 'admin_manager' },
         { id: 'audit_logs' as ActivePage, label: t('navAuditLogs'), icon: History, show: isExecutive || isManager },
-        { id: 'company_settings' as ActivePage, label: t('navSettings'), icon: Building, show: isExecutive },
+        { id: 'company_settings' as ActivePage, label: t('navSettings'), icon: Building, show: isPlatformAdmin },
       ],
     },
   ];

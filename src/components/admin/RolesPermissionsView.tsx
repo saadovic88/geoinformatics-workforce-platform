@@ -6,10 +6,12 @@ import { Lock, Shield, Check, X, Save } from 'lucide-react';
 import { DEFAULT_PERMISSION_MATRIX } from '../../data/seedData';
 
 export const RolesPermissionsView: React.FC = () => {
+  const { currentUser } = useAuth();
   const { t, isRtl } = useLanguage();
   const [matrix, setMatrix] = useState(DEFAULT_PERMISSION_MATRIX);
   const [selectedRole, setSelectedRole] = useState<RoleId>('gis_manager');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const canManage = ['ceo', 'sys_admin'].includes(currentUser.roleId);
 
   const roles: { id: RoleId; nameEn: string; nameAr: string }[] = [
     { id: 'ceo', nameEn: '1. CEO (Dr. Mohamed Badawy)', nameAr: '1. الرئيس التنفيذي (د. محمد بدوي)' },
@@ -41,6 +43,7 @@ export const RolesPermissionsView: React.FC = () => {
   const actions = ['view', 'create', 'edit', 'delete', 'approve', 'export', 'manage'] as const;
 
   const togglePerm = (modId: string, act: typeof actions[number]) => {
+    if (!canManage) return;
     setMatrix((prev) => {
       const currentRoleObj = prev[selectedRole] || {};
       const currentModObj = currentRoleObj[modId] || {
@@ -67,12 +70,14 @@ export const RolesPermissionsView: React.FC = () => {
   };
 
   const handleSave = () => {
+    if (!canManage) return;
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 
   return (
     <div className="space-y-6">
+      {!canManage && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">Read-only access. Only the CEO and System Administrator can change role permissions.</div>}
       {/* Header */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
@@ -89,7 +94,8 @@ export const RolesPermissionsView: React.FC = () => {
 
         <button
           onClick={handleSave}
-          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-1.5"
+          disabled={!canManage}
+          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Save className="w-3.5 h-3.5" />
           <span>{t('save')}</span>
@@ -168,7 +174,8 @@ export const RolesPermissionsView: React.FC = () => {
                             type="checkbox"
                             checked={isGranted}
                             onChange={() => togglePerm(mod.id, act)}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
+                            disabled={!canManage}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                           />
                         </td>
                       );

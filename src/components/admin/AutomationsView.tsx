@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { Cpu, Play, CheckCircle, Clock, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { Cpu, Play, Clock, AlertTriangle, ServerCog, ShieldAlert } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export const AutomationsView: React.FC = () => {
   const { runAutomations, lastAutomationRun } = useData();
   const { t, isRtl } = useLanguage();
+  const { currentUser } = useAuth();
+  const canRun = ['ceo', 'sys_admin', 'admin_manager'].includes(currentUser.roleId);
 
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([
@@ -16,6 +19,7 @@ export const AutomationsView: React.FC = () => {
   ]);
 
   const handleRunNow = () => {
+    if (!canRun) return;
     setIsRunning(true);
     setTimeout(() => {
       const executed = runAutomations();
@@ -62,21 +66,21 @@ export const AutomationsView: React.FC = () => {
     {
       titleEn: 'Overdue GIS Tasks Auto-Scanner',
       titleAr: 'الفاحص الآلي لمهام ومشاريع GIS المتأخرة',
-      triggerEn: 'Scheduled Hourly Cron',
+      triggerEn: 'Manual review cycle',
       triggerAr: 'فحص دوري كل ساعة',
       actionEn: 'Scans tasks past due date, sets status to Overdue and fires critical alert to assignee and project manager.',
       actionAr: 'يفحص المهام التي تجاوزت الموعد، يحول حالتها إلى "متأخرة"، ويرسل تنبيهاً للمكلف والمدير.',
-      statusEn: 'Active',
+      statusEn: 'Ready for manual run',
       statusAr: 'نشط',
     },
     {
       titleEn: 'End-of-Day Missing Check-Out Closer',
       titleAr: 'إغلاق جلسات الحضور المفتوحة في نهاية اليوم',
-      triggerEn: 'Daily at 18:30',
+      triggerEn: 'Manual review cycle',
       triggerAr: 'يومياً الساعة 6:30 مساءً',
       actionEn: 'Flags unclosed sessions, notifies HR Director Amr El Soghayar, sends reminder to employee.',
       actionAr: 'يرصد الجلسات غير المغلقة، ويُخطر المدير الإداري عمرو الصغير، ويُرسل تذكيراً للموظف.',
-      statusEn: 'Active',
+      statusEn: 'Ready for manual run',
       statusAr: 'نشط',
     },
     {
@@ -99,26 +103,31 @@ export const AutomationsView: React.FC = () => {
           <div className="flex items-center gap-2 mb-1">
             <Cpu className="w-5 h-5 text-blue-600" />
             <h1 className="text-xl font-bold text-slate-900">{t('automationsTitle')}</h1>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
-              6 Active Background Daemons
-            </span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200">Demo workflow monitor</span>
           </div>
           <p className="text-xs text-slate-500">
             {isRtl
               ? 'محرك الأتمتة المدمج لمراقبة الحضور، تجاوز السياج، الاعتمادات الثنائية، ومؤشرات الأداء.'
-              : 'Autonomous background workflows for geofence validation, dual approval leaves, and KPI calculations.'}
+              : 'Event-driven rules are available in this browser session. Scheduled server jobs are not configured in this demo.'}
           </p>
         </div>
 
         <button
           onClick={handleRunNow}
-          disabled={isRunning}
+          disabled={isRunning || !canRun}
           className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2 disabled:opacity-50"
         >
           <Play className={`w-3.5 h-3.5 ${isRunning ? 'animate-spin' : ''}`} />
           <span>{isRunning ? t('loading') : t('runAutomationsNow')}</span>
         </button>
       </div>
+
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950 flex gap-3">
+        <ServerCog className="w-5 h-5 shrink-0 text-amber-700" />
+        <div><p className="font-bold">Execution scope</p><p className="mt-1 text-amber-800">“Run now” evaluates the current in-memory demo data and records an audit event. It does not configure cron, send production notifications, or run after this browser session closes.</p></div>
+      </div>
+
+      {!canRun && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900 flex items-center gap-2"><ShieldAlert className="w-4 h-4" />You can inspect workflow health, but only platform administrators and the Administrative Manager can run a manual cycle.</div>}
 
       {/* Rules Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -129,7 +138,7 @@ export const AutomationsView: React.FC = () => {
           >
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${idx >= 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                   {isRtl ? rule.statusAr : rule.statusEn}
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
@@ -156,11 +165,11 @@ export const AutomationsView: React.FC = () => {
       <div className="bg-slate-950 text-slate-200 rounded-2xl p-5 shadow-xl font-mono text-xs space-y-3">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
             <span className="font-bold text-white text-[11px] uppercase tracking-wider">
               {isRtl
                 ? 'سجل العمليات والمهام المؤتمتة الفورية (Live Background Daemons Terminal)'
-                : 'Autonomous Automation Daemon Execution Logs'}
+                : 'Manual Automation Evaluation Log'}
             </span>
           </div>
           <span className="text-slate-500 text-[10px]">

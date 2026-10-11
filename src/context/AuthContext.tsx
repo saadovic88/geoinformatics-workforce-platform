@@ -214,10 +214,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentUser.roleId === 'ceo' || currentUser.roleId === 'sys_admin') return true;
 
     const rolePerms = DEFAULT_PERMISSION_MATRIX[currentUser.roleId];
-    if (!rolePerms) return true; // default permissive for demo
+    // An unknown role or module must never silently gain access. This keeps the
+    // client-side affordances aligned with the database policy model.
+    if (!rolePerms) return false;
 
     const modPerms = rolePerms[module];
-    if (!modPerms) return true;
+    if (!modPerms) return false;
 
     return !!modPerms[action];
   };
