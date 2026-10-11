@@ -53,36 +53,37 @@ const MainAppContent: React.FC = () => {
         return <OrgStructureView />;
       case 'attendance_my':
       case 'attendance_team':
-        return <AttendanceDashboard />;
+        return <AttendanceDashboard key={activePage} />;
       case 'geofence_settings':
         return <GeofenceSettingsView />;
       case 'schedules':
         return <SchedulesHolidaysView />;
       case 'tasks_my':
-        return <TasksView filterScope="my" initialViewMode="kanban" />;
+        return <TasksView key={activePage} filterScope="my" initialViewMode="kanban" />;
       case 'tasks_team':
-        return <TasksView filterScope="team" initialViewMode="kanban" />;
+        return <TasksView key={activePage} filterScope="team" initialViewMode="kanban" />;
       case 'tasks_kanban':
-        return <TasksView initialViewMode="kanban" />;
+        return <TasksView key={activePage} initialViewMode="kanban" />;
       case 'task_insights':
-        return <TasksView filterScope="team" initialViewMode="insights" />;
+        return <TasksView key={activePage} filterScope="team" initialViewMode="insights" />;
       case 'leaves_requests':
-        return <LeaveManagement initialTab="requests" />;
+        return <LeaveManagement key={activePage} initialTab="requests" />;
       case 'leaves_balances':
-        return <LeaveManagement initialTab="balances" />;
+        return <LeaveManagement key={activePage} initialTab="balances" />;
       case 'leaves_dual_approval':
-        return <LeaveManagement initialTab="dual_approval" />;
+        return <LeaveManagement key={activePage} initialTab="dual_approval" />;
       case 'leaves_wfh_field':
-        return <LeaveManagement initialTab="wfh_field" />;
+        return <LeaveManagement key={activePage} initialTab="wfh_field" />;
       case 'kpi_my':
-        return <KPIDashboard initialMode="my" />;
+        return <KPIDashboard key={activePage} initialMode="my" />;
       case 'kpi_team':
-        return <KPIDashboard initialMode="team" />;
+        return <KPIDashboard key={activePage} initialMode="team" />;
       case 'kpi_reports':
-        return <KPIDashboard initialMode="reports" />;
+        return <KPIDashboard key={activePage} initialMode="reports" />;
       case 'reports_center':
+        return <ReportsCenter key={activePage} />;
       case 'audit_logs':
-        return <ReportsCenter />;
+        return <ReportsCenter key={activePage} initialReport="audit" />;
       case 'roles_matrix':
         return <RolesPermissionsView />;
       case 'automations':

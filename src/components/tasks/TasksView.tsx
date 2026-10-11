@@ -68,7 +68,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewNotes, setReviewNotes] = useState<string>('');
 
   const filteredTasks = tasks.filter((task) => {
-    const isMyTask = task.assigneeIds.includes(currentUser.id);
+    // Platform administrators and designated full-access leaders need a useful
+    // operational view even when they are not personally assigned to a task.
+    const isMyTask = isFullAccessUser || task.assigneeIds.includes(currentUser.id);
     if (scope === 'my' && !isMyTask) return false;
 
     const matchesSearch =

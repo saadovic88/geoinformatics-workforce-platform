@@ -31,14 +31,14 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   onRequestLeave,
   onCreateTask,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, isFullAccessUser } = useAuth();
   const { todayAttendance, checkIn, geofenceZones, tasks, leaveBalances, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
 
   // My tasks
-  const myTasks = tasks.filter((t) => t.assigneeIds.includes(currentUser.id));
+  const myTasks = isFullAccessUser ? tasks : tasks.filter((t) => t.assigneeIds.includes(currentUser.id));
   const activeTasks = myTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
 
   // My balances

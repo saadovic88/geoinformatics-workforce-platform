@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   AttendanceRecord,
   AttendanceStatus,
@@ -25,6 +25,7 @@ import {
   INITIAL_TASKS,
   INITIAL_WORK_SCHEDULES,
   INITIAL_AUDIT_LOGS,
+  INITIAL_USERS,
 } from '../data/seedData';
 import { evaluateGeofence, calculateHaversineDistanceMeters } from '../utils/geoUtils';
 import { useAuth } from './AuthContext';
@@ -75,16 +76,19 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, users } = useAuth();
+  const didRemapEmployeeIds = useRef(false);
 
   // Helper to migrate employee IDs from legacy seed data
   const mapLegacyId = (id: string): string => {
-    if (id === 'emp_ragab') return 'emp_ghada';
-    if (id === 'emp_barfan') return 'emp_salama';
-    if (id === 'emp_nassar') return 'emp_nassar_senior';
-    if (id === 'emp_mostafa_nassar') return 'emp_mostafa_nasser';
-    if (id === 'emp_youssef') return 'emp_youssef_osama';
-    return id;
+    const normalizedId = id === 'emp_ragab' ? 'emp_ghada'
+      : id === 'emp_barfan' ? 'emp_salama'
+      : id === 'emp_nassar' ? 'emp_nassar_senior'
+      : id === 'emp_mostafa_nassar' ? 'emp_mostafa_nasser'
+      : id === 'emp_youssef' ? 'emp_youssef_osama'
+      : id;
+    const seedUser = INITIAL_USERS.find((user) => user.id === normalizedId);
+    return seedUser ? users.find((user) => user.employeeCode === seedUser.employeeCode)?.id || normalizedId : normalizedId;
   };
 
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
@@ -210,6 +214,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [lastAutomationRun, setLastAutomationRun] = useState<string>(new Date().toISOString());
+
+  // Seed data predates Supabase and references legacy employee IDs. Once the
+  // real directory arrives, align every relation with the Auth/Profile UUID so
+  // dashboards, tasks, leaves and KPI views remain populated after login.
+  useEffect(() => {
+    if (!users.length || didRemapEmployeeIds.current) return;
+    didRemapEmployeeIds.current = true;
+    setAttendanceRecords((prev) => prev.map((record) => ({ ...record, employeeId: mapLegacyId(record.employeeId), reviewedBy: record.reviewedBy ? mapLegacyId(record.reviewedBy) : undefined })));
+    setLeaveBalances((prev) => prev.map((balance) => ({ ...balance, employeeId: mapLegacyId(balance.employeeId) })));
+    setLeaveRequests((prev) => prev.map((request) => ({ ...request, employeeId: mapLegacyId(request.employeeId), approvalSteps: request.approvalSteps.map((step) => ({ ...step, approverId: mapLegacyId(step.approverId) })) })));
+    setTasks((prev) => prev.map((task) => ({
+      ...task,
+      creatorId: mapLegacyId(task.creatorId),
+      assigneeIds: task.assigneeIds.map(mapLegacyId),
+      comments: task.comments.map((comment) => ({ ...comment, userId: mapLegacyId(comment.userId) })),
+      activityLogs: task.activityLogs.map((log) => ({ ...log, userId: mapLegacyId(log.userId) })),
+    })));
+    setKpiRecords((prev) => prev.map((record) => ({ ...record, employeeId: mapLegacyId(record.employeeId), reviewedBy: record.reviewedBy ? mapLegacyId(record.reviewedBy) : undefined })));
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, userId: notification.userId === 'all' ? 'all' : mapLegacyId(notification.userId) })));
+    setAuditLogs((prev) => prev.map((log) => ({ ...log, userId: mapLegacyId(log.userId) })));
+  }, [users]);
 
   // Persistence effects
   useEffect(() => {

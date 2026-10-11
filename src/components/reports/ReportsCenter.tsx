@@ -30,7 +30,11 @@ import {
   triggerPrintReport,
 } from '../../utils/exportUtils';
 
-export const ReportsCenter: React.FC = () => {
+interface ReportsCenterProps {
+  initialReport?: 'daily_attendance' | 'audit';
+}
+
+export const ReportsCenter: React.FC<ReportsCenterProps> = ({ initialReport = 'daily_attendance' }) => {
   const { users } = useAuth();
   const { attendanceRecords, leaveRequests, leaveBalances, tasks, kpiRecords, auditLogs } = useData();
   const { t, isRtl } = useLanguage();
@@ -49,7 +53,7 @@ export const ReportsCenter: React.FC = () => {
     | 'tasks'
     | 'kpi'
     | 'audit'
-  >('daily_attendance');
+  >(initialReport);
 
   const [filterSearch, setFilterSearch] = useState('');
 
