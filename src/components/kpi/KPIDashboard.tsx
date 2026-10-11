@@ -32,7 +32,7 @@ interface KPIDashboardProps {
 }
 
 export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }) => {
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, isFullAccessUser } = useAuth();
   const { kpiRecords, updateKPIRecord, attendanceRecords, tasks } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -162,7 +162,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
     exportToCSV(`Geoinformatics_KPI_Summary_Month_${selectedMonth}_2026`, headers, rows);
   };
 
-  const isManager = currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
 
   return (
     <div className="space-y-6">

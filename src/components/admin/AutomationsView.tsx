@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 export const AutomationsView: React.FC = () => {
   const { runAutomations, lastAutomationRun } = useData();
   const { t, isRtl } = useLanguage();
-  const { currentUser } = useAuth();
-  const canRun = ['ceo', 'sys_admin', 'admin_manager'].includes(currentUser.roleId);
+  const { currentUser, isFullAccessUser } = useAuth();
+  const canRun = isFullAccessUser || currentUser.roleId === 'admin_manager';
 
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([

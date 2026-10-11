@@ -16,7 +16,15 @@ interface AuthContextType {
   pendingLogoutSummary: boolean;
   setPendingLogoutSummary: (val: boolean) => void;
   completeLogout: () => void;
+  isFullAccessUser: boolean;
 }
+
+export const FULL_ACCESS_EMAILS = new Set([
+  'm.badawy@geoinformatics.com',
+  'm.omar@geoinformatics.com',
+  'amr.soghayar@geoinformatics.com',
+  'badr.salama@geoinformatics.com',
+]);
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -113,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !supabase && localStorage.getItem('geo_is_authenticated') !== 'false');
 
   const [pendingLogoutSummary, setPendingLogoutSummary] = useState(false);
+  const isFullAccessUser = currentUser?.roleId === 'sys_admin' || FULL_ACCESS_EMAILS.has(currentUser?.email?.toLowerCase());
 
   useEffect(() => {
     if (!supabase) return;
@@ -211,7 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): boolean => {
     if (!currentUser) return false;
     // System admin and CEO have all permissions
-    if (currentUser.roleId === 'ceo' || currentUser.roleId === 'sys_admin') return true;
+    if (currentUser.roleId === 'ceo' || isFullAccessUser) return true;
 
     const rolePerms = DEFAULT_PERMISSION_MATRIX[currentUser.roleId];
     // An unknown role or module must never silently gain access. This keeps the
@@ -254,6 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pendingLogoutSummary,
         setPendingLogoutSummary,
         completeLogout,
+        isFullAccessUser,
       }}
     >
       {children}

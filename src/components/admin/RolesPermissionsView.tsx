@@ -6,12 +6,12 @@ import { Lock, Shield, Check, X, Save } from 'lucide-react';
 import { DEFAULT_PERMISSION_MATRIX } from '../../data/seedData';
 
 export const RolesPermissionsView: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { isFullAccessUser } = useAuth();
   const { t, isRtl } = useLanguage();
   const [matrix, setMatrix] = useState(DEFAULT_PERMISSION_MATRIX);
   const [selectedRole, setSelectedRole] = useState<RoleId>('gis_manager');
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const canManage = ['ceo', 'sys_admin'].includes(currentUser.roleId);
+  const canManage = isFullAccessUser;
 
   const roles: { id: RoleId; nameEn: string; nameAr: string }[] = [
     { id: 'ceo', nameEn: '1. CEO (Dr. Mohamed Badawy)', nameAr: '1. الرئيس التنفيذي (د. محمد بدوي)' },

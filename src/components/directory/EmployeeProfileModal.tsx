@@ -33,7 +33,7 @@ interface EmployeeProfileModalProps {
 
 export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user, onClose }) => {
   const { attendanceRecords, leaveBalances, leaveRequests, tasks, kpiRecords, auditLogs } = useData();
-  const { currentUser, updateUser } = useAuth();
+  const { currentUser, updateUser, isFullAccessUser } = useAuth();
   const { t, isRtl } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<
@@ -41,7 +41,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   >('personal');
 
   // Editable fields state for HR/Admin
-  const canEdit = currentUser.roleId === 'ceo' || currentUser.roleId === 'admin_manager' || currentUser.id === user?.id;
+  const canEdit = isFullAccessUser || currentUser.roleId === 'admin_manager' || currentUser.id === user?.id;
   const [phone, setPhone] = useState(user?.phone || '');
   const [email, setEmail] = useState(user?.email || '');
   const [savedSuccess, setSavedSuccess] = useState(false);

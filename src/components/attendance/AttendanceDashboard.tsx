@@ -22,7 +22,7 @@ import { exportToCSV } from '../../utils/exportUtils';
 import { UserAvatar } from '../common/UserAvatar';
 
 export const AttendanceDashboard: React.FC = () => {
-  const { users, currentUser } = useAuth();
+  const { users, currentUser, isFullAccessUser } = useAuth();
   const {
     attendanceRecords,
     geofenceZones,
@@ -87,7 +87,7 @@ export const AttendanceDashboard: React.FC = () => {
     setExceptionNotes('');
   };
 
-  const canReview = currentUser.roleId === 'ceo' || currentUser.roleId === 'admin_manager' || currentUser.roleId === 'hr_officer';
+  const canReview = isFullAccessUser || currentUser.roleId === 'admin_manager' || currentUser.roleId === 'hr_officer';
 
   return (
     <div className="space-y-6">

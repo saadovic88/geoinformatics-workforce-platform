@@ -8,8 +8,8 @@ const defaults: Settings = { companyNameEn: 'Geoinformatics GIS & Remote Sensing
 
 export const CompanySettingsView: React.FC = () => {
   const { isRtl } = useLanguage();
-  const { currentUser } = useAuth();
-  const canManage = ['ceo', 'sys_admin'].includes(currentUser.roleId);
+  const { isFullAccessUser } = useAuth();
+  const canManage = isFullAccessUser;
   const [settings, setSettings] = useState<Settings>(() => { try { return { ...defaults, ...JSON.parse(localStorage.getItem('geo_company_settings') || '{}') }; } catch { return defaults; } });
   const [notice, setNotice] = useState<'saved' | 'error' | null>(null);
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => setSettings((prev) => ({ ...prev, [key]: value }));

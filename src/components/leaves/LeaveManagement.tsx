@@ -24,7 +24,7 @@ interface LeaveManagementProps {
 }
 
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = 'requests' }) => {
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, isFullAccessUser } = useAuth();
   const {
     leaveRequests,
     leaveBalances,
@@ -343,8 +343,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 const isRequester = currentUser.id === req.employeeId;
 
                 // Check which step currentUser can sign
-                const canSignStep1 = currentUser.id === step1?.approverId || currentUser.roleId === 'ceo';
-                const canSignStep2 = currentUser.id === step2?.approverId || currentUser.roleId === 'ceo';
+                const canSignStep1 = isFullAccessUser || currentUser.id === step1?.approverId || currentUser.roleId === 'ceo';
+                const canSignStep2 = isFullAccessUser || currentUser.id === step2?.approverId || currentUser.roleId === 'ceo';
 
                 const notes = approvalNotes[req.id] || '';
 

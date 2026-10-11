@@ -33,7 +33,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   initialViewMode = 'kanban',
   filterScope = 'my',
 }) => {
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, isFullAccessUser } = useAuth();
   const {
     tasks,
     createTask,
@@ -129,7 +129,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
     if (refreshed) setSelectedTask(refreshed);
   };
 
-  const isManager = currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
 
   return (
     <div className="space-y-6">

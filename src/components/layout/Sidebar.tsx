@@ -72,12 +72,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
 }) => {
-  const { currentUser, hasPermission } = useAuth();
+  const { currentUser, hasPermission, isFullAccessUser } = useAuth();
   const { t, isRtl, language, setLanguage } = useLanguage();
 
-  const isPlatformAdmin = ['ceo', 'sys_admin'].includes(currentUser.roleId);
+  const isPlatformAdmin = currentUser.roleId === 'ceo' || isFullAccessUser;
   const isExecutive = ['ceo', 'co_founder'].includes(currentUser.roleId);
-  const isManager = currentUser.roleId.includes('manager') || isExecutive || currentUser.roleId === 'sys_admin';
+  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || isExecutive || currentUser.roleId === 'sys_admin';
   const canManageSettings = isPlatformAdmin || currentUser.roleId === 'admin_manager';
 
   const navGroups = [
