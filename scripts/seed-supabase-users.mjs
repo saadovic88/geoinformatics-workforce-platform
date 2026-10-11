@@ -38,6 +38,28 @@ const employees = [
   ['GEO-016','mohamed.mokhtar','Eng. Mohamed Mokhtar','GIS Specialist','gis_specialist','gis','mohamed.mokhtar@geoinformatics.com','saad.barghouth@geoinformatics.com'],
 ];
 
+// Public employee portraits bundled with the application. Keeping this map in
+// provisioning guarantees directory, profile, task and report views all use
+// the same image after a fresh database setup.
+const avatarByUsername = {
+  'dr.badawy': '/assets/employees/dr-mohamed-badawy.png',
+  'eng.omar': '/assets/employees/mohamed-omar.png',
+  'dr.ghada': '/assets/employees/dr-ghada.png',
+  'amr.soghayar': '/assets/employees/amr-el-soghayar.png',
+  'badr.salama': '/assets/employees/badr-el-din-salama.png',
+  'saad.barghouth': '/assets/employees/saad-barghouth.png',
+  'kyrillos.talaat': '/assets/employees/kyrillos-talaat.jpg',
+  'sherif.younes': '/assets/employees/sherif-younes.jpg',
+  'ahmed.salah': '/assets/employees/ahmed-salah.png',
+  'abdelrahman.nassar': '/assets/employees/abdelrahman-nassar.jpg',
+  'ahmed.badr': '/assets/employees/ahmed-badr.jpg',
+  'mostafa.nasser': '/assets/employees/mostafa-nasser.jpg',
+  'youssef.osama': '/assets/employees/youssef-osama.jpg',
+  'abdelrahman.mostafa': '/assets/employees/abdelrahman-mostafa.png',
+  'ahmed.tammam': '/assets/employees/ahmed-tammam.png',
+  'mohamed.mokhtar': '/assets/employees/mohamed-mokhtar.png',
+};
+
 const userMetadata = ([employeeCode, username, nameEn, jobTitleEn, roleId, departmentId]) => ({
   employee_code: employeeCode, username, name_en: nameEn, name_ar: nameEn,
   job_title_en: jobTitleEn, job_title_ar: jobTitleEn, role_id: roleId, department_id: departmentId,
@@ -73,7 +95,8 @@ const profileRows = users.map((row) => {
     id: authUser.id, employee_code: employeeCode, username,
     name_en: nameEn, name_ar: metadata.name_ar || nameEn,
     email, job_title_en: jobTitleEn, job_title_ar: metadata.job_title_ar || jobTitleEn,
-    role_id: roleId, department_id: departmentId, joining_date: new Date().toISOString().slice(0, 10),
+    role_id: roleId, department_id: departmentId, avatar_url: avatarByUsername[username] || null,
+    joining_date: new Date().toISOString().slice(0, 10),
   };
 });
 const { error: profileUpsertError } = await admin.from('profiles').upsert(profileRows, { onConflict: 'id' });

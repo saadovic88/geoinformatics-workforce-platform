@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import companyLogoImg from '../../assets/logo.jpg';
 
 interface CompanyLogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -43,7 +42,7 @@ export const CompanyLogo: React.FC<CompanyLogoProps> = ({
       >
         {!imageError ? (
           <img
-            src={companyLogoImg}
+            src="/assets/logo.jpg"
             alt="Geoinformatics Logo"
             onError={() => setImageError(true)}
             className="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-105"
