@@ -65,7 +65,7 @@ const MainAppContent: React.FC = () => {
       case 'schedules':
         return <SchedulesHolidaysView />;
       case 'tasks_my':
-        return <TasksView key={`${activePage}-${notificationTarget?.itemId || ''}`} filterScope="my" initialViewMode="kanban" initialTaskId={notificationTarget?.itemId} />;
+        return <TasksView key={`${activePage}-${notificationTarget?.itemId || ''}`} filterScope="my" initialViewMode="list" initialTaskId={notificationTarget?.itemId} />;
       case 'tasks_team':
         return <TasksView key={activePage} filterScope="team" initialViewMode="kanban" />;
       case 'tasks_kanban':

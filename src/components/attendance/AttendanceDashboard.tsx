@@ -43,7 +43,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
   const [exceptionNotes, setExceptionNotes] = useState('');
 
   const isExecutive = isFullAccessUser;
-  const isManager = isExecutive || currentUser.roleId.includes('manager');
+  const isManager = isExecutive;
   const allowedEmployeeIds = new Set(
     isExecutive
       ? users.map((user) => user.id)

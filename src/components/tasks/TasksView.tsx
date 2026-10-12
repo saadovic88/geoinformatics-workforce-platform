@@ -75,7 +75,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewScore, setReviewScore] = useState<number>(95);
   const [reviewNotes, setReviewNotes] = useState<string>('');
 
-  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const isManager = isFullAccessUser;
   const canConfirmCompletion = isFullAccessUser;
   const canViewTeamTask = (task: Task) =>
     isFullAccessUser ||
