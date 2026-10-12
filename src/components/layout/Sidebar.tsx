@@ -88,7 +88,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleAr: 'لوحات القيادة',
       items: [
         { id: 'dashboard' as ActivePage, label: t('navDashboard'), icon: LayoutDashboard, show: true },
-        { id: 'executive' as ActivePage, label: t('navExecutive'), icon: BarChart3, show: isPlatformAdmin },
       ],
     },
     {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -31,10 +31,27 @@ const MainAppContent: React.FC = () => {
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [manualCheckoutModal, setManualCheckoutModal] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState<{ page: ActivePage; itemId?: string } | null>(null);
+  const mainViewportRef = useRef<HTMLElement>(null);
+
+  // A navigation action should always reveal the new page header. Without this,
+  // an administrator who navigates while scrolled down can appear to remain on
+  // the previous page even though React has rendered the destination.
+  useEffect(() => {
+    mainViewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activePage]);
 
   if (!isAuthenticated) {
     return <LoginView />;
   }
+
+  const adminFallback = () => (
+    <EmployeeDashboard
+      onNavigate={(page) => setActivePage(page)}
+      onOpenCheckOutModal={() => setManualCheckoutModal(true)}
+      onRequestLeave={() => setActivePage('leaves_requests')}
+      onCreateTask={() => setActivePage('tasks_kanban')}
+    />
+  );
 
   const renderActiveView = () => {
     switch (activePage) {
@@ -51,7 +68,7 @@ const MainAppContent: React.FC = () => {
           />
         );
       case 'executive':
-        return <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} />;
+        return isFullAccessUser ? <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} /> : adminFallback();
       case 'directory':
         return isFullAccessUser ? <EmployeeDirectory /> : <EmployeeDashboard
           onNavigate={(page) => setActivePage(page)}
@@ -60,23 +77,23 @@ const MainAppContent: React.FC = () => {
           onCreateTask={() => setActivePage('tasks_kanban')}
         />;
       case 'orgchart':
-        return <OrgStructureView />;
+        return isFullAccessUser ? <OrgStructureView /> : adminFallback();
       case 'attendance_my':
         return <AttendanceDashboard key={activePage} scope="my" />;
       case 'attendance_team':
-        return <AttendanceDashboard key={activePage} scope="team" />;
+        return isFullAccessUser ? <AttendanceDashboard key={activePage} scope="team" /> : adminFallback();
       case 'geofence_settings':
-        return <GeofenceSettingsView />;
+        return isFullAccessUser ? <GeofenceSettingsView /> : adminFallback();
       case 'schedules':
-        return <SchedulesHolidaysView />;
+        return isFullAccessUser ? <SchedulesHolidaysView /> : adminFallback();
       case 'tasks_my':
         return <TasksView key={`${activePage}-${notificationTarget?.itemId || ''}`} filterScope="my" initialViewMode="list" initialTaskId={notificationTarget?.itemId} />;
       case 'tasks_team':
-        return <TasksView key={activePage} filterScope="team" initialViewMode="kanban" />;
+        return isFullAccessUser ? <TasksView key={activePage} filterScope="team" initialViewMode="kanban" /> : adminFallback();
       case 'tasks_kanban':
         return <TasksView key={activePage} initialViewMode="kanban" />;
       case 'task_insights':
-        return <TasksView key={activePage} filterScope="team" initialViewMode="insights" />;
+        return isFullAccessUser ? <TasksView key={activePage} filterScope="team" initialViewMode="insights" /> : adminFallback();
       case 'leaves_requests':
         return <LeaveManagement key={activePage} initialTab="requests" />;
       case 'leaves_balances':
@@ -88,19 +105,19 @@ const MainAppContent: React.FC = () => {
       case 'kpi_my':
         return <KPIDashboard key={activePage} initialMode="my" />;
       case 'kpi_team':
-        return <KPIDashboard key={activePage} initialMode="team" />;
+        return isFullAccessUser ? <KPIDashboard key={activePage} initialMode="team" /> : adminFallback();
       case 'kpi_reports':
-        return <KPIDashboard key={activePage} initialMode="reports" />;
+        return isFullAccessUser ? <KPIDashboard key={activePage} initialMode="reports" /> : adminFallback();
       case 'reports_center':
-        return <ReportsCenter key={activePage} />;
+        return isFullAccessUser ? <ReportsCenter key={activePage} /> : adminFallback();
       case 'audit_logs':
-        return <ReportsCenter key={activePage} initialReport="audit" />;
+        return isFullAccessUser ? <ReportsCenter key={activePage} initialReport="audit" /> : adminFallback();
       case 'roles_matrix':
-        return <RolesPermissionsView />;
+        return isFullAccessUser ? <RolesPermissionsView /> : adminFallback();
       case 'automations':
-        return <AutomationsView />;
+        return isFullAccessUser ? <AutomationsView /> : adminFallback();
       case 'company_settings':
-        return <CompanySettingsView />;
+        return isFullAccessUser ? <CompanySettingsView /> : adminFallback();
       default:
         return (
           <EmployeeDashboard
@@ -142,7 +159,7 @@ const MainAppContent: React.FC = () => {
         />
 
         {/* Scrollable Viewport */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8">
+        <main ref={mainViewportRef} className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8">
           <div className="max-w-7xl mx-auto">{renderActiveView()}</div>
         </main>
       </div>
