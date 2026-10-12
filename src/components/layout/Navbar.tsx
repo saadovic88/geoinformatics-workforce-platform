@@ -24,9 +24,10 @@ import { UserAvatar } from '../common/UserAvatar';
 interface NavbarProps {
   onToggleSidebar?: () => void;
   onOpenCheckOutModal?: () => void;
+  onNotificationAction?: (actionUrl?: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutModal, onNotificationAction }) => {
   const { currentUser, users, logout } = useAuth();
   const { todayAttendance, checkIn, notifications, markNotificationRead, markAllNotificationsRead } = useData();
   const { language, setLanguage, t, isRtl } = useLanguage();
@@ -36,7 +37,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showSwitchMenu, setShowSwitchMenu] = useState(false);
 
-  const unreadNotifs = notifications.filter((n) => !n.isRead);
+  // Notifications are private to the intended recipient (or company-wide).
+  const visibleNotifications = notifications.filter((n) => n.userId === currentUser.id || n.userId === 'all');
+  const unreadNotifs = visibleNotifications.filter((n) => !n.isRead);
 
   const isCheckedIn = !!todayAttendance;
   const isCheckedOut = !!todayAttendance?.checkOutTime;
@@ -226,16 +229,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                 </div>
 
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
-                  {notifications.length === 0 ? (
+                  {visibleNotifications.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-400">
                       {t('noNotifications')}
                     </div>
                   ) : (
-                    notifications.map((notif) => (
+                    visibleNotifications.map((notif) => (
                       <div
                         key={notif.id}
-                        onClick={() => markNotificationRead(notif.id)}
-                        className={`p-3.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800/80 transition cursor-pointer flex gap-3 ${
+                        onClick={() => {
+                          markNotificationRead(notif.id);
+                          setShowNotifMenu(false);
+                          onNotificationAction?.(notif.actionUrl);
+                        }}
+                        className={`p-3.5 text-xs hover:bg-blue-50 dark:hover:bg-slate-800/80 transition cursor-pointer flex gap-3 ${
                           !notif.isRead ? 'bg-blue-50/40 dark:bg-blue-950/30' : ''
                         }`}
                       >

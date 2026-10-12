@@ -59,3 +59,32 @@ for select to authenticated using (public.is_people_operations());
 drop policy if exists "leaves people operations read" on public.leave_requests;
 create policy "leaves people operations read" on public.leave_requests
 for select to authenticated using (public.is_people_operations());
+
+-- Performance records are private by default. Executives can read company
+-- reporting; a line manager can read only direct reports; changes remain
+-- governed by the existing manager/admin policy.
+create or replace function public.can_view_kpi_for(target_employee_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    target_employee_id = auth.uid()
+    or public.is_privileged()
+    or exists (
+      select 1 from public.profiles actor
+      where actor.id = auth.uid()
+        and actor.role_id in ('ceo', 'co_founder')
+    )
+    or exists (
+      select 1 from public.profiles target
+      where target.id = target_employee_id
+        and target.manager_id = auth.uid()
+    );
+$$;
+
+drop policy if exists "kpi read" on public.monthly_kpi_records;
+create policy "kpi scoped read" on public.monthly_kpi_records
+for select to authenticated using (public.can_view_kpi_for(employee_id));

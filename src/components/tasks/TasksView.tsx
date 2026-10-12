@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -27,11 +27,13 @@ import { TaskPerformanceInsights } from './TaskPerformanceInsights';
 interface TasksViewProps {
   initialViewMode?: 'kanban' | 'list' | 'insights';
   filterScope?: 'my' | 'team';
+  initialTaskId?: string;
 }
 
 export const TasksView: React.FC<TasksViewProps> = ({
   initialViewMode = 'kanban',
   filterScope = 'my',
+  initialTaskId,
 }) => {
   const { currentUser, users, isFullAccessUser } = useAuth();
   const {
@@ -49,6 +51,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (!initialTaskId) return;
+    const task = tasks.find((candidate) => candidate.id === initialTaskId);
+    if (task && task.assigneeIds.includes(currentUser.id)) setSelectedTask(task);
+  }, [initialTaskId, tasks, currentUser.id]);
 
   // New task modal state
   const [showNewModal, setShowNewModal] = useState(false);
@@ -68,6 +76,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewNotes, setReviewNotes] = useState<string>('');
 
   const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const canConfirmCompletion = isFullAccessUser;
   const canViewTeamTask = (task: Task) =>
     isFullAccessUser ||
     ['ceo', 'co_founder'].includes(currentUser.roleId) ||
@@ -491,7 +500,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {selectedTask.status !== 'submitted' && selectedTask.status !== 'completed' && (
+                  {selectedTask.assigneeIds.includes(currentUser.id) && selectedTask.status !== 'submitted' && selectedTask.status !== 'completed' && (
                     <button
                       onClick={() => {
                         updateTaskStatus(selectedTask.id, 'submitted');
@@ -504,8 +513,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     </button>
                   )}
 
-                  {isManager && selectedTask.status === 'submitted' && (
+                  {canConfirmCompletion && selectedTask.status === 'submitted' && (
                     <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700">
+                        KPI
+                        <input type="number" min="0" max="100" value={reviewScore} onChange={(event) => setReviewScore(Number(event.target.value))} className="w-12 bg-transparent text-center outline-none" />%
+                      </label>
                       <button
                         onClick={() => {
                           reviewTask(selectedTask.id, 'approve', reviewScore, reviewNotes);

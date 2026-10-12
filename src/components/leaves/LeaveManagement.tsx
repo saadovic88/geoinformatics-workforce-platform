@@ -352,6 +352,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 // Check which step currentUser can sign
                 const canSignStep1 = isFullAccessUser || currentUser.id === step1?.approverId || currentUser.roleId === 'ceo';
                 const canSignStep2 = isFullAccessUser || currentUser.id === step2?.approverId || currentUser.roleId === 'ceo';
+                const currentApprovalStep = req.approvalSteps.find((step) => step.status === 'pending' && (step.approverId === currentUser.id || isFullAccessUser));
 
                 const notes = approvalNotes[req.id] || '';
 
@@ -441,7 +442,13 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                           className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"
                         />
 
-                        <div className="grid grid-cols-2 gap-2">
+                        {currentApprovalStep && <div className="flex gap-2 mb-2">
+                          <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'approved', notes)} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs">
+                            {isRtl ? `اعتماد بصفتي ${currentApprovalStep.approverName}` : `Approve as ${currentApprovalStep.approverName}`}
+                          </button>
+                          <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">رفض</button>
+                        </div>}
+                        {false && <div className="grid grid-cols-2 gap-2">
                           {/* Sign as Step 1 (Eng. Omar) */}
                           <div className="flex gap-1">
                             <button
@@ -477,7 +484,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                               ✕
                             </button>
                           </div>
-                        </div>
+                        </div>}
                       </div>
                     ) : (
                       <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg italic">

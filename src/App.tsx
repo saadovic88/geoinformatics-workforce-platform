@@ -30,6 +30,7 @@ const MainAppContent: React.FC = () => {
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [manualCheckoutModal, setManualCheckoutModal] = useState(false);
+  const [notificationTarget, setNotificationTarget] = useState<{ page: ActivePage; itemId?: string } | null>(null);
 
   if (!isAuthenticated) {
     return <LoginView />;
@@ -64,7 +65,7 @@ const MainAppContent: React.FC = () => {
       case 'schedules':
         return <SchedulesHolidaysView />;
       case 'tasks_my':
-        return <TasksView key={activePage} filterScope="my" initialViewMode="kanban" />;
+        return <TasksView key={`${activePage}-${notificationTarget?.itemId || ''}`} filterScope="my" initialViewMode="kanban" initialTaskId={notificationTarget?.itemId} />;
       case 'tasks_team':
         return <TasksView key={activePage} filterScope="team" initialViewMode="kanban" />;
       case 'tasks_kanban':
@@ -123,6 +124,16 @@ const MainAppContent: React.FC = () => {
         <Navbar
           onToggleSidebar={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
           onOpenCheckOutModal={() => setManualCheckoutModal(true)}
+          onNotificationAction={(actionUrl) => {
+            const [kind, itemId] = (actionUrl || '').split(':');
+            const page: ActivePage = kind === 'task' || kind === 'tasks' ? 'tasks_my'
+              : kind === 'leave' || kind === 'leaves' ? 'leaves_requests'
+              : kind === 'attendance' ? 'attendance_my'
+              : kind === 'kpi' ? 'kpi_my'
+              : 'dashboard';
+            setNotificationTarget({ page, itemId });
+            setActivePage(page);
+          }}
         />
 
         {/* Scrollable Viewport */}

@@ -76,7 +76,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, isFullAccessUser } = useAuth();
   const didRemapEmployeeIds = useRef(false);
 
   // Helper to migrate employee IDs from legacy seed data
@@ -487,37 +487,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createLeaveRequest = (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => {
     const requesterId = req.employeeId;
 
-    // Configurable dual approver assignment:
-    // Required approvers are: Eng. Mohamed Omar & Dr. Ghada
-    // If requester is Eng. Mohamed Omar -> replace Omar with CEO Dr. Mohamed Badawy
-    // If requester is Dr. Ghada -> replace Dr. Ghada with CEO Dr. Mohamed Badawy
-    let step1Approver = { id: 'emp_omar', name: 'Eng. Mohamed Omar' };
-    let step2Approver = { id: 'emp_ghada', name: 'Dr. Ghada' };
-
-    if (requesterId === 'emp_omar') {
-      step1Approver = { id: 'emp_badawy', name: 'Dr. Mohamed Badawy (CEO)' };
-    }
-    if (requesterId === 'emp_ghada') {
-      step2Approver = { id: 'emp_badawy', name: 'Dr. Mohamed Badawy (CEO)' };
-    }
+    const requester = users.find((user) => user.id === requesterId);
+    // Company approvers: Dr. Mohamed, Amr and Badr. GIS requests add Saad;
+    // Remote Sensing requests add Sherif before the company approvals.
+    const approvers = [
+      ...(requester?.departmentId === 'gis' ? [{ id: 'emp_barghouth', name: 'Eng. Saad Barghouth (GIS)' }] : []),
+      ...(requester?.departmentId === 'remote_sensing' ? [{ id: 'emp_sherif', name: 'Eng. Sherif Younes (Remote Sensing)' }] : []),
+      { id: 'emp_badawy', name: 'Dr. Mohamed Badawy' },
+      { id: 'emp_soghayar', name: 'Amr El Soghayar' },
+      { id: 'emp_salama', name: 'Eng. Badr El Din Salama' },
+    ].filter((approver) => approver.id !== requesterId);
 
     const newRequest: LeaveRequest = {
       ...req,
       id: `lr_${Date.now()}`,
       createdAt: new Date().toISOString(),
       status: 'pending_approval',
-      approvalSteps: [
-        {
-          approverId: step1Approver.id,
-          approverName: step1Approver.name,
-          status: 'pending',
-        },
-        {
-          approverId: step2Approver.id,
-          approverName: step2Approver.name,
-          status: 'pending',
-        },
-      ],
+      approvalSteps: approvers.map((approver) => ({ approverId: approver.id, approverName: approver.name, status: 'pending' })),
     };
 
     setLeaveRequests((prev) => [newRequest, ...prev]);
@@ -537,14 +523,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Notify Approvers
     addNotification({
-      userId: step1Approver.id,
+      userId: approvers[0]?.id || 'emp_badawy',
       titleEn: 'Leave Request Awaiting Dual Approval',
       titleAr: 'طلب إجازة جديد بانتظار الاعتماد الثنائي',
       messageEn: `New ${req.leaveType} request (${req.durationUnits} ${req.unit}) submitted by employee.`,
       messageAr: `طلب جديد (${req.leaveType}) لمدة ${req.durationUnits} ${req.unit} بانتظار توقيعكم.`,
       type: 'leave',
       priority: 'high',
-      actionUrl: 'leaves',
+      actionUrl: `leave:${newRequest.id}`,
     });
 
     logAction('LEAVE_REQUESTED', 'Leaves', `Request for ${req.durationUnits} ${req.unit} of ${req.leaveType} created`);
@@ -558,6 +544,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     const target = leaveRequests.find((r) => r.id === requestId);
     if (!target) return;
+    if (!isFullAccessUser && currentUser.id !== approverId) return;
+    if (!target.approvalSteps.some((step) => step.approverId === approverId && step.status === 'pending')) return;
 
     if (decision === 'rejected') {
       // Immediate rejection of the entire request
@@ -595,7 +583,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         messageAr: `تم رفض طلبكم من قِبل إدارة الشركة. الملاحظات: ${notes || 'لا توجد ملاحظات.'}`,
         type: 'leave',
         priority: 'high',
-        actionUrl: 'leaves',
+        actionUrl: `leave:${requestId}`,
       });
 
       logAction('LEAVE_REJECTED', 'Leaves', `Request ${requestId} rejected by ${approverId}`);
@@ -662,7 +650,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         messageAr: `تم توقيع واعتماد طلبكم من كلاً من م. محمد عمر و د. غادة، وتم تحديث الأرصدة والحضور بنجاح.`,
         type: 'leave',
         priority: 'high',
-        actionUrl: 'leaves',
+        actionUrl: `leave:${requestId}`,
       });
 
       logAction('LEAVE_FULLY_APPROVED', 'Leaves', `Request ${requestId} fully approved by dual signatories`);
@@ -685,7 +673,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           messageAr: `حصل الطلب ${requestId} على التوقيع الأول، وبانتظار اعتمادكم النهائي لإتمامه.`,
           type: 'leave',
           priority: 'high',
-          actionUrl: 'leaves',
+          actionUrl: `leave:${requestId}`,
         });
       }
 
@@ -760,7 +748,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         messageAr: `تم تكليفكم بالمهمة: "${taskData.title}" ضمن مشروع ${taskData.projectName}. الموعد: ${taskData.dueDate}`,
         type: 'task',
         priority: taskData.priority === 'critical' || taskData.priority === 'high' ? 'high' : 'medium',
-        actionUrl: 'tasks',
+        actionUrl: `task:${newTask.id}`,
       });
     });
 
@@ -773,6 +761,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+    const target = tasks.find((task) => task.id === taskId);
+    if (!target || (!isFullAccessUser && !target.assigneeIds.includes(currentUser.id) && target.creatorId !== currentUser.id)) return;
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== taskId) return t;
@@ -793,6 +783,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       })
     );
+    if (newStatus === 'submitted') {
+      const reviewers = Array.from(new Set([target.creatorId, ...users.filter((user) => user.roleId === 'sys_admin').map((user) => user.id)]));
+      reviewers.filter((userId) => userId !== currentUser.id).forEach((userId) => addNotification({
+        userId,
+        titleEn: 'Task submitted for administrator confirmation',
+        titleAr: 'تم إرسال مهمة لاعتماد المسؤول',
+        messageEn: `"${target.title}" was submitted and is waiting for confirmation and KPI rating.`,
+        messageAr: `تم إرسال المهمة «${target.title}» وبانتظار الاعتماد والتقييم ضمن KPI.`,
+        type: 'task', priority: 'high', actionUrl: `task:${taskId}`,
+      }));
+    }
     logAction('TASK_STATUS_CHANGED', 'Tasks', `Task ${taskId} moved to ${newStatus}`);
   };
 
@@ -834,13 +835,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reviewTask = (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => {
+    if (!isFullAccessUser) return;
+    const taskToReview = tasks.find((task) => task.id === taskId);
+    if (!taskToReview) return;
+    const normalizedScore = Math.max(0, Math.min(100, score ?? 100));
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== taskId) return t;
         return {
           ...t,
           status: decision === 'approve' ? 'completed' : 'needs_revision',
-          reviewScore: score ?? t.reviewScore,
+          reviewScore: normalizedScore,
           managerReviewNotes: notes,
           activityLogs: [
             ...t.activityLogs,
@@ -854,11 +859,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       })
     );
+    if (decision === 'approve') {
+      setKpiRecords((previous) => previous.map((record) => {
+        if (!taskToReview.assigneeIds.includes(record.employeeId)) return record;
+        const nextWorkScore = Number(((normalizedScore / 100) * 40).toFixed(1));
+        const totalScore = Number((record.totalScore - record.workScore.scoreOutOfWeight + nextWorkScore).toFixed(1));
+        return { ...record, workScore: { ...record.workScore, scoreOutOfWeight: nextWorkScore, scorePercentage: normalizedScore, managerNotes: notes || `Task review: ${taskToReview.title}` }, totalScore, status: 'published', reviewedBy: currentUser.nameEn, publishedAt: new Date().toISOString() };
+      }));
+    }
+    taskToReview.assigneeIds.forEach((userId) => addNotification({
+      userId,
+      titleEn: decision === 'approve' ? 'Task confirmed and rated' : 'Task returned for revision',
+      titleAr: decision === 'approve' ? 'تم اعتماد المهمة وتقييمها' : 'تمت إعادة المهمة للمراجعة',
+      messageEn: decision === 'approve' ? `Your task score is ${normalizedScore}% and has been included in your KPI.` : (notes || 'Please review the administrator notes and resubmit.'),
+      messageAr: decision === 'approve' ? `تم تسجيل تقييم ${normalizedScore}% ضمن مؤشر الأداء الخاص بك.` : (notes || 'يرجى مراجعة ملاحظات المسؤول ثم إعادة الإرسال.'),
+      type: 'task', priority: 'high', actionUrl: `task:${taskId}`,
+    }));
     logAction('TASK_REVIEWED', 'Tasks', `Task ${taskId} review result: ${decision}`);
   };
 
   // KPI Management
   const updateKPIRecord = (record: MonthlyKPIRecord) => {
+    if (!isFullAccessUser) return;
     setKpiRecords((prev) => prev.map((k) => (k.id === record.id ? record : k)));
     logAction('KPI_UPDATED', 'KPI', `KPI updated for employee ${record.employeeId} (Month ${record.month}/${record.year})`);
   };
@@ -898,7 +920,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const markAllNotificationsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setNotifications((prev) => prev.map((n) => n.userId === currentUser.id || n.userId === 'all' ? { ...n, isRead: true } : n));
   };
 
   // Automations Engine

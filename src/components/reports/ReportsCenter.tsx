@@ -35,9 +35,10 @@ interface ReportsCenterProps {
 }
 
 export const ReportsCenter: React.FC<ReportsCenterProps> = ({ initialReport = 'daily_attendance' }) => {
-  const { users } = useAuth();
+  const { users, currentUser, isFullAccessUser } = useAuth();
   const { attendanceRecords, leaveRequests, leaveBalances, tasks, kpiRecords, auditLogs } = useData();
   const { t, isRtl } = useLanguage();
+  const canAccessCompanyReports = isFullAccessUser || currentUser.roleId === 'ceo';
 
   // Export Mode: 'all_data' (تنزيل المعلومات كلها) vs 'per_person' (تنزيل لكل شخص)
   const [downloadScope, setDownloadScope] = useState<'all_data' | 'per_person'>('all_data');
@@ -226,6 +227,18 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({ initialReport = 'd
     { id: 'kpi', label: isRtl ? 'تقرير تقييم الأداء الشامل KPI' : 'Master KPI Performance' },
     { id: 'audit', label: isRtl ? 'سجل العمليات والرقابة' : 'Security & Audit Logs' },
   ];
+
+  if (!canAccessCompanyReports) {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <Shield className="mx-auto h-10 w-10 text-blue-600" />
+        <h1 className="mt-4 text-lg font-bold text-slate-900">{isRtl ? 'تقارير الشركة محمية' : 'Company reports are protected'}</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          {isRtl ? 'يمكنك الاطلاع على بياناتك الشخصية من صفحات الحضور والمهام وتقييم الأداء فقط.' : 'Use Attendance, Tasks, and KPI pages for your own private records.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

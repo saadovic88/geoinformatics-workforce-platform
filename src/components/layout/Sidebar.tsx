@@ -142,10 +142,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleEn: 'Reports & Governance',
       titleAr: 'التقارير والإدارة النظامية',
       items: [
-        { id: 'reports_center' as ActivePage, label: t('navReports'), icon: FileSpreadsheet, show: isManager || isPlatformAdmin },
+        { id: 'reports_center' as ActivePage, label: t('navReports'), icon: FileSpreadsheet, show: isPlatformAdmin },
         { id: 'roles_matrix' as ActivePage, label: t('navRolesPerms'), icon: Lock, show: isPlatformAdmin },
         { id: 'automations' as ActivePage, label: t('navAutomations'), icon: Cpu, show: isPlatformAdmin || currentUser.roleId === 'admin_manager' },
-        { id: 'audit_logs' as ActivePage, label: t('navAuditLogs'), icon: History, show: isExecutive || isManager },
+        { id: 'audit_logs' as ActivePage, label: t('navAuditLogs'), icon: History, show: isPlatformAdmin },
         { id: 'company_settings' as ActivePage, label: t('navSettings'), icon: Building, show: isPlatformAdmin },
       ],
     },

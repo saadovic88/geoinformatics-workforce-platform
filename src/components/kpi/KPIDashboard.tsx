@@ -96,6 +96,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
   );
 
   const handleSaveEvaluation = () => {
+    if (!isFullAccessUser) return;
     const total = parseFloat((attScore + workScore + behScore + devScore).toFixed(1));
     const newRecord: MonthlyKPIRecord = {
       id: `kpi_${scoringUser}_2026_${selectedMonth}`,
@@ -163,6 +164,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
   };
 
   const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const canViewCompanyReporting = isFullAccessUser || ['ceo', 'co_founder'].includes(currentUser.roleId);
 
   return (
     <div className="space-y-6">
@@ -183,7 +185,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
 
         <div className="flex items-center gap-2.5">
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
-            <button
+            {canViewCompanyReporting && <button
               onClick={() => {
                 setMode('my');
                 setSelectedEmployeeId(currentUser.id);
@@ -193,7 +195,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
               }`}
             >
               {t('navMyKPI')}
-            </button>
+            </button>}
             {isManager && (
               <button
                 onClick={() => setMode('team')}
@@ -214,31 +216,31 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
             </button>
           </div>
 
-          <button
+          {isFullAccessUser && <button
             onClick={() => setIsRawDataModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition flex items-center gap-1.5"
             title={isRtl ? 'تصدير بيانات الأداء الخام للتحليل الربع سنوي' : 'Export Raw Performance Data for Quarterly Review Analysis'}
           >
             <Database className="w-3.5 h-3.5" />
             <span>{isRtl ? 'بيانات الأداء الخام (CSV)' : 'Raw Quarterly Data (CSV)'}</span>
-          </button>
+          </button>}
 
-          <button
+          {isFullAccessUser && <button
             onClick={() => setIsQuarterlyModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition flex items-center gap-1.5"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>{isRtl ? 'تقرير الربع (PDF / CSV)' : 'Quarterly Report (PDF / CSV)'}</span>
-          </button>
+          </button>}
 
-          <button
+          {isFullAccessUser && <button
             onClick={handleExportKPIReport}
             className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 transition flex items-center gap-1.5"
             title={t('exportCsv')}
           >
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t('exportCsv')}</span>
-          </button>
+          </button>}
         </div>
       </div>
 
