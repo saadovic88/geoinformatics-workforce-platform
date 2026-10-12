@@ -6,7 +6,7 @@ import { CompanyLogo } from '../common/CompanyLogo';
 import { supabase } from '../../lib/supabase';
 
 export const LoginView: React.FC = () => {
-  const { login, users, setCurrentUser } = useAuth();
+  const { login } = useAuth();
   const { t, language, setLanguage, isRtl } = useLanguage();
   const [username, setUsername] = useState('dr.badawy');
   const [password, setPassword] = useState('••••••••');
@@ -21,7 +21,9 @@ export const LoginView: React.FC = () => {
     const success = await login(username, password);
     if (!success) setErrorMessage(isRtl ? 'بيانات الدخول غير صحيحة. يرجى التحقق من اسم المستخدم أو البريد الإلكتروني.' : 'Invalid credentials. Please enter a valid username, email, or employee code.');
   };
-  const handleQuickDemoLogin = (userId: string) => { const target = users.find((u) => u.id === userId); if (target) setCurrentUser(target); };
+  // Kept as a harmless no-op for the legacy offline mock markup. Real access
+  // always goes through Supabase authentication above.
+  const handleQuickDemoLogin = (_userId: string) => undefined;
   const handleForgotSubmit = (e: React.FormEvent) => { e.preventDefault(); setResetSuccess(true); setTimeout(() => { setResetSuccess(false); setForgotModal(false); }, 2000); };
 
   return (

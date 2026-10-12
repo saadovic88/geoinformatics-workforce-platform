@@ -67,11 +67,19 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewScore, setReviewScore] = useState<number>(95);
   const [reviewNotes, setReviewNotes] = useState<string>('');
 
+  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const canViewTeamTask = (task: Task) =>
+    isFullAccessUser ||
+    ['ceo', 'co_founder'].includes(currentUser.roleId) ||
+    task.creatorId === currentUser.id ||
+    task.departmentId === currentUser.departmentId;
+
   const filteredTasks = tasks.filter((task) => {
-    // Platform administrators and designated full-access leaders need a useful
-    // operational view even when they are not personally assigned to a task.
-    const isMyTask = isFullAccessUser || task.assigneeIds.includes(currentUser.id);
+    const isMyTask = task.assigneeIds.includes(currentUser.id);
+    // "My tasks" always means the signed-in employee's own assignments.
     if (scope === 'my' && !isMyTask) return false;
+    // Team scope is only useful to a manager and is restricted to their area.
+    if (scope === 'team' && (!isManager || !canViewTeamTask(task))) return false;
 
     const matchesSearch =
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -131,8 +139,6 @@ export const TasksView: React.FC<TasksViewProps> = ({
     if (refreshed) setSelectedTask(refreshed);
   };
 
-  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -163,14 +169,14 @@ export const TasksView: React.FC<TasksViewProps> = ({
             >
               {t('navMyTasks')}
             </button>
-            <button
+            {isManager && <button
               onClick={() => setScope('team')}
               className={`px-3 py-1.5 rounded-lg transition ${
                 scope === 'team' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {t('navTeamTasks')}
-            </button>
+            </button>}
           </div>
 
           {/* View Mode Toggle */}

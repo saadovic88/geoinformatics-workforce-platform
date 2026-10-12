@@ -31,14 +31,16 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   onRequestLeave,
   onCreateTask,
 }) => {
-  const { currentUser, isFullAccessUser } = useAuth();
+  const { currentUser } = useAuth();
   const { todayAttendance, checkIn, geofenceZones, tasks, leaveBalances, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
 
   // My tasks
-  const myTasks = isFullAccessUser ? tasks : tasks.filter((t) => t.assigneeIds.includes(currentUser.id));
+  // This is a personal workspace, regardless of rank. Executive work is shown
+  // in ExecutiveDashboard instead of silently turning "My tasks" into every task.
+  const myTasks = tasks.filter((t) => t.assigneeIds.includes(currentUser.id));
   const activeTasks = myTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
 
   // My balances

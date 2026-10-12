@@ -26,7 +26,7 @@ import { CompanySettingsView } from './components/admin/CompanySettingsView';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 const MainAppContent: React.FC = () => {
-  const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary } = useAuth();
+  const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary, currentUser, isFullAccessUser } = useAuth();
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [manualCheckoutModal, setManualCheckoutModal] = useState(false);
@@ -38,6 +38,9 @@ const MainAppContent: React.FC = () => {
   const renderActiveView = () => {
     switch (activePage) {
       case 'dashboard':
+        if (isFullAccessUser || ['ceo', 'co_founder'].includes(currentUser.roleId)) {
+          return <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} />;
+        }
         return (
           <EmployeeDashboard
             onNavigate={(page) => setActivePage(page)}
@@ -53,8 +56,9 @@ const MainAppContent: React.FC = () => {
       case 'orgchart':
         return <OrgStructureView />;
       case 'attendance_my':
+        return <AttendanceDashboard key={activePage} scope="my" />;
       case 'attendance_team':
-        return <AttendanceDashboard key={activePage} />;
+        return <AttendanceDashboard key={activePage} scope="team" />;
       case 'geofence_settings':
         return <GeofenceSettingsView />;
       case 'schedules':

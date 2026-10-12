@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase';
 interface AuthContextType {
   currentUser: User;
   users: User[];
+  /** Used only by the offline local-demo fallback; never rendered with Supabase enabled. */
   setCurrentUser: (user: User) => void;
-  switchUserById: (userId: string) => void;
   login: (username: string, pass: string) => Promise<boolean>;
   logout: () => void;
   hasPermission: (module: string, action: 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'export' | 'manage') => boolean;
@@ -163,13 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('geo_is_authenticated', 'true');
   };
 
-  const switchUserById = (userId: string) => {
-    const target = users.find((u) => u.id === userId);
-    if (target) {
-      setCurrentUser(target);
-    }
-  };
-
   const login = async (usernameOrEmail: string, pass: string): Promise<boolean> => {
     if (supabase) {
       // Supabase Auth signs in with an email. Anonymous clients cannot query
@@ -261,7 +254,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser,
         users,
         setCurrentUser,
-        switchUserById,
         login,
         logout,
         hasPermission,

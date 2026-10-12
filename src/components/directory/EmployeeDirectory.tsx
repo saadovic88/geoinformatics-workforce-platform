@@ -10,7 +10,6 @@ import {
   Building,
   Phone,
   Mail,
-  UserCheck,
   ExternalLink,
   Download,
   Camera,
@@ -20,7 +19,7 @@ import { exportToCSV, exportIndividualEmployeeDossierCSV } from '../../utils/exp
 import { UserAvatar } from '../common/UserAvatar';
 
 export const EmployeeDirectory: React.FC = () => {
-  const { users, switchUserById, updateUser } = useAuth();
+  const { users, updateUser } = useAuth();
   const { attendanceRecords, kpiRecords, leaveBalances, leaveRequests, tasks } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -239,11 +238,11 @@ export const EmployeeDirectory: React.FC = () => {
                   <Download className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => switchUserById(employee.id)}
+                  onClick={() => undefined}
                   title="Switch to this user session"
-                  className="px-2.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition flex items-center gap-1"
+                  className="hidden px-2.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition items-center gap-1"
                 >
-                  <UserCheck className="w-3.5 h-3.5" />
+                  <Download className="w-3.5 h-3.5" />
                   <span className="text-[10px] hidden sm:inline">{isRtl ? 'دخول' : 'Act As'}</span>
                 </button>
               </div>

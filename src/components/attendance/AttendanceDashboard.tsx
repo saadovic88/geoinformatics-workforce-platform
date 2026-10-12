@@ -21,7 +21,11 @@ import { LeafletMap } from '../common/LeafletMap';
 import { exportToCSV } from '../../utils/exportUtils';
 import { UserAvatar } from '../common/UserAvatar';
 
-export const AttendanceDashboard: React.FC = () => {
+interface AttendanceDashboardProps {
+  scope?: 'my' | 'team';
+}
+
+export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope = 'my' }) => {
   const { users, currentUser, isFullAccessUser } = useAuth();
   const {
     attendanceRecords,
@@ -38,7 +42,20 @@ export const AttendanceDashboard: React.FC = () => {
   const [selectedException, setSelectedException] = useState<AttendanceRecord | null>(null);
   const [exceptionNotes, setExceptionNotes] = useState('');
 
-  const filteredRecords = attendanceRecords.filter((rec) => {
+  const isExecutive = isFullAccessUser || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const isManager = isExecutive || currentUser.roleId.includes('manager');
+  const allowedEmployeeIds = new Set(
+    isExecutive
+      ? users.map((user) => user.id)
+      : isManager
+        ? users.filter((user) => user.id === currentUser.id || user.managerId === currentUser.id || user.departmentId === currentUser.departmentId).map((user) => user.id)
+        : [currentUser.id]
+  );
+  const visibleRecords = attendanceRecords.filter((record) =>
+    scope === 'my' ? record.employeeId === currentUser.id : allowedEmployeeIds.has(record.employeeId)
+  );
+
+  const filteredRecords = visibleRecords.filter((rec) => {
     const emp = users.find((u) => u.id === rec.employeeId);
     const matchesSearch =
       !searchEmployee ||
@@ -98,7 +115,7 @@ export const AttendanceDashboard: React.FC = () => {
             <Clock className="w-5 h-5 text-blue-600" />
             <h1 className="text-xl font-bold text-slate-900">{t('navAttendance')}</h1>
             <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
-              {attendanceRecords.length} {isRtl ? 'سجلاً' : 'Records'}
+              {filteredRecords.length} {isRtl ? 'سجلاً' : 'Records'}
             </span>
           </div>
           <p className="text-xs text-slate-500">

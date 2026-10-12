@@ -79,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isPlatformAdmin = currentUser.roleId === 'ceo' || isFullAccessUser;
   const isExecutive = ['ceo', 'co_founder'].includes(currentUser.roleId);
   const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || isExecutive || currentUser.roleId === 'sys_admin';
+  const canViewPeopleDirectory = isPlatformAdmin || currentUser.roleId === 'admin_manager' || currentUser.roleId === 'hr_officer';
   const canManageSettings = isPlatformAdmin || currentUser.roleId === 'admin_manager';
 
   const navGroups = [
@@ -94,8 +95,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleEn: 'Workforce & Org',
       titleAr: 'الموظفون والهيكل',
       items: [
-        { id: 'directory' as ActivePage, label: t('navEmployeeDir'), icon: Users, show: true },
-        { id: 'orgchart' as ActivePage, label: t('navOrgChart'), icon: Network, show: true },
+        { id: 'directory' as ActivePage, label: t('navEmployeeDir'), icon: Users, show: canViewPeopleDirectory },
+        { id: 'orgchart' as ActivePage, label: t('navOrgChart'), icon: Network, show: canViewPeopleDirectory },
       ],
     },
     {

@@ -27,7 +27,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutModal }) => {
-  const { currentUser, users, switchUserById, logout } = useAuth();
+  const { currentUser, users, logout } = useAuth();
   const { todayAttendance, checkIn, notifications, markNotificationRead, markAllNotificationsRead } = useData();
   const { language, setLanguage, t, isRtl } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -103,10 +103,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           </div>
         </div>
 
-        {/* Right: Demo Switcher, Theme Toggle, Language, Notifications, User Menu */}
+        {/* Right: personal controls only. Account switching is deliberately disabled. */}
         <div className="flex shrink-0 items-center gap-1 sm:gap-2.5">
           {/* Quick Demo Role Switcher Dropdown */}
-          <div className="relative hidden md:block">
+          {false && <div className="relative hidden md:block">
             <button
               onClick={() => setShowSwitchMenu(!showSwitchMenu)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 transition"
@@ -134,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                     <button
                       key={u.id}
                       onClick={() => {
-                        switchUserById(u.id);
+                        void u;
                         setShowSwitchMenu(false);
                       }}
                       className={`w-full px-3 py-2 text-start flex items-center gap-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition text-xs ${
@@ -159,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Theme Toggle Button */}
           <button

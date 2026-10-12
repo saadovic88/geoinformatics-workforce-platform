@@ -1,11 +1,11 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { Network, Building2, ChevronDown, UserCheck } from 'lucide-react';
+import { Network } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 
 export const OrgStructureView: React.FC = () => {
-  const { users, switchUserById } = useAuth();
+  const { users } = useAuth();
   const { t, isRtl } = useLanguage();
 
   const ceo = users.find((u) => u.id === 'emp_badawy');

@@ -53,6 +53,13 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   // Rejection/Approval comment input
   const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
 
+  const isPeopleOperations = isFullAccessUser || ['ceo', 'co_founder', 'admin_manager', 'hr_officer'].includes(currentUser.roleId);
+  const visibleLeaveRequests = leaveRequests.filter((request) =>
+    request.employeeId === currentUser.id ||
+    isPeopleOperations ||
+    request.approvalSteps.some((step) => step.approverId === currentUser.id)
+  );
+
   // Balances for current user
   const myBalances = leaveBalances.filter((b) => b.employeeId === currentUser.id);
   const selectedBalance = myBalances.find((b) => b.leaveType === leaveType);
@@ -90,7 +97,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   };
 
   // Pending for dual approval
-  const pendingDual = leaveRequests.filter(
+  const pendingDual = visibleLeaveRequests.filter(
     (r) => r.status === 'pending_approval' || r.status === 'partially_approved'
   );
 
@@ -155,7 +162,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          {t('navLeaveRequests')} ({leaveRequests.length})
+          {t('navLeaveRequests')} ({visibleLeaveRequests.length})
         </button>
         <button
           onClick={() => setActiveTab('dual_approval')}
@@ -213,7 +220,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {leaveRequests.map((req) => {
+                  {visibleLeaveRequests.map((req) => {
                     const requester = users.find((u) => u.id === req.employeeId);
                     const isMyRequest = req.employeeId === currentUser.id;
 
@@ -542,7 +549,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {leaveRequests
+            {visibleLeaveRequests
               .filter((r) => r.leaveType === 'wfh' || r.leaveType === 'external_site')
               .map((permit) => {
                 const requester = users.find((u) => u.id === permit.employeeId);
