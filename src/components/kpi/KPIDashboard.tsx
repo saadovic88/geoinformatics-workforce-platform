@@ -185,7 +185,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
 
         <div className="flex items-center gap-2.5">
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
-            {canViewCompanyReporting && <button
+            <button
               onClick={() => {
                 setMode('my');
                 setSelectedEmployeeId(currentUser.id);
@@ -195,7 +195,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
               }`}
             >
               {t('navMyKPI')}
-            </button>}
+            </button>
             {isManager && (
               <button
                 onClick={() => setMode('team')}
@@ -206,14 +206,14 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
                 {t('navTeamKPI')}
               </button>
             )}
-            <button
+            {canViewCompanyReporting && <button
               onClick={() => setMode('reports')}
               className={`px-3 py-1.5 rounded-lg transition ${
                 mode === 'reports' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {t('navKPIReports')}
-            </button>
+            </button>}
           </div>
 
           {isFullAccessUser && <button

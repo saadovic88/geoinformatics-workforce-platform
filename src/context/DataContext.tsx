@@ -916,7 +916,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Notifications
   const markNotificationRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setNotifications((prev) => prev.map((n) => (n.id === id && (n.userId === currentUser.id || n.userId === 'all') ? { ...n, isRead: true } : n)));
   };
 
   const markAllNotificationsRead = () => {

@@ -234,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUser = (updatedUser: User) => {
+    if (!isFullAccessUser) return;
     setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
     if (currentUser.id === updatedUser.id) {
       setCurrentUserState(updatedUser);
