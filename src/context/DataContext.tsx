@@ -140,11 +140,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .map((r: LeaveRequest) => ({
               ...r,
               employeeId: mapLegacyId(r.employeeId),
-              approvalSteps: r.approvalSteps.map((step) =>
-                step.approverId === 'emp_ragab'
-                  ? { ...step, approverId: 'emp_ghada', approverName: 'Dr. Ghada' }
-                  : step
-              ),
+              approvalSteps: r.approvalSteps,
             }));
         }
       } catch (e) {
@@ -502,15 +498,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const requesterId = req.employeeId;
 
     const requester = users.find((user) => user.id === requesterId);
-    // Company approvers: Dr. Mohamed, Amr and Badr. GIS requests add Saad;
-    // Remote Sensing requests add Sherif before the company approvals.
+    // Always resolve live profile IDs first. Hard-coded seed IDs must never be
+    // used when Supabase has supplied UUID profile IDs, otherwise the actual
+    // manager would not receive the notification or be able to sign.
+    const resolveApprover = (roleId: string, fallbackId: string, fallbackName: string) => {
+      const profile = users.find((user) => user.roleId === roleId);
+      return profile ? { id: profile.id, name: profile.nameEn } : { id: fallbackId, name: fallbackName };
+    };
     const approvers = [
-      ...(requester?.departmentId === 'gis' ? [{ id: 'emp_barghouth', name: 'Eng. Saad Barghouth (GIS)' }] : []),
-      ...(requester?.departmentId === 'remote_sensing' ? [{ id: 'emp_sherif', name: 'Eng. Sherif Younes (Remote Sensing)' }] : []),
-      { id: 'emp_badawy', name: 'Dr. Mohamed Badawy' },
-      { id: 'emp_soghayar', name: 'Amr El Soghayar' },
-      { id: 'emp_salama', name: 'Eng. Badr El Din Salama' },
-    ].filter((approver) => approver.id !== requesterId);
+      ...(requester?.departmentId === 'gis' ? [resolveApprover('gis_manager', 'emp_barghouth', 'Eng. Saad Barghouth (GIS)')] : []),
+      ...(requester?.departmentId === 'remote_sensing' ? [resolveApprover('rs_manager', 'emp_sherif', 'Eng. Sherif Younes (Remote Sensing)')] : []),
+      resolveApprover('ceo', 'emp_badawy', 'Dr. Mohamed Badawy'),
+      resolveApprover('admin_manager', 'emp_soghayar', 'Amr El Soghayar'),
+      resolveApprover('tech_manager', 'emp_salama', 'Eng. Badr El Din Salama'),
+    ].filter((approver, index, list) => approver.id !== requesterId && list.findIndex((item) => item.id === approver.id) === index);
 
     const newRequest: LeaveRequest = {
       ...req,
@@ -535,17 +536,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    // Notify Approvers
-    addNotification({
-      userId: approvers[0]?.id || 'emp_badawy',
-      titleEn: 'Leave Request Awaiting Dual Approval',
-      titleAr: 'طلب إجازة جديد بانتظار الاعتماد الثنائي',
-      messageEn: `New ${req.leaveType} request (${req.durationUnits} ${req.unit}) submitted by employee.`,
-      messageAr: `طلب جديد (${req.leaveType}) لمدة ${req.durationUnits} ${req.unit} بانتظار توقيعكم.`,
+    // Every required signer receives a direct, actionable notification. This
+    // includes Saad for GIS and Sherif for Remote Sensing requests.
+    approvers.forEach((approver) => addNotification({
+      userId: approver.id,
+      titleEn: 'Leave Request Awaiting Your Approval',
+      titleAr: 'طلب إجازة جديد بانتظار اعتمادكم',
+      messageEn: `${requester?.nameEn || 'An employee'} submitted a ${req.leaveType} request (${req.durationUnits} ${req.unit}).`,
+      messageAr: `تم تقديم طلب ${req.leaveType} لمدة ${req.durationUnits} ${req.unit} وبانتظار اعتمادكم.`,
       type: 'leave',
       priority: 'high',
       actionUrl: `leave:${newRequest.id}`,
-    });
+    }));
 
     logAction('LEAVE_REQUESTED', 'Leaves', `Request for ${req.durationUnits} ${req.unit} of ${req.leaveType} created`);
   };
@@ -593,7 +595,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: target.employeeId,
         titleEn: 'Leave Request Rejected',
         titleAr: 'تم رفض طلب الإجازة',
-        messageEn: `Your request was rejected by ${approverId === 'emp_omar' ? 'Eng. Mohamed Omar' : approverId === 'emp_ghada' ? 'Dr. Ghada' : 'Executive Management'}. Notes: ${notes || 'No notes provided.'}`,
+        messageEn: `Your request was rejected by an authorised reviewer. Notes: ${notes || 'No notes provided.'}`,
         messageAr: `تم رفض طلبكم من قِبل إدارة الشركة. الملاحظات: ${notes || 'لا توجد ملاحظات.'}`,
         type: 'leave',
         priority: 'high',
@@ -660,8 +662,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: target.employeeId,
         titleEn: 'Leave Request Fully Approved',
         titleAr: 'تم اعتماد طلب الإجازة نهائياً',
-        messageEn: `Both Eng. Mohamed Omar & Dr. Ghada have signed off on your ${target.leaveType} request. Balances and attendance synchronized.`,
-        messageAr: `تم توقيع واعتماد طلبكم من كلاً من م. محمد عمر و د. غادة، وتم تحديث الأرصدة والحضور بنجاح.`,
+        messageEn: `Your ${target.leaveType} request has received all required approvals. Balances and attendance are synchronized.`,
+        messageAr: `تم اعتماد طلبكم بعد اكتمال جميع الموافقات المطلوبة، وتم تحديث الأرصدة والحضور بنجاح.`,
         type: 'leave',
         priority: 'high',
         actionUrl: `leave:${requestId}`,
@@ -1023,7 +1025,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 3. Scan pending leave requests aging > 48h
     const agedPending = leaveRequests.filter((r) => r.status === 'pending_approval');
     if (agedPending.length > 0) {
-      executed.push(`Sent reminder alert to Eng. Mohamed Omar and Dr. Ghada for ${agedPending.length} pending leave requests.`);
+      executed.push(`Queued reminders for authorised reviewers on ${agedPending.length} pending leave request(s).`);
     }
 
     // 4. KPI monthly auto-aggregation check

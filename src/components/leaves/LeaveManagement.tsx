@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -59,6 +59,13 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
     isPeopleOperations ||
     request.approvalSteps.some((step) => step.approverId === currentUser.id)
   );
+  const canReviewLeave = isPeopleOperations || leaveRequests.some((request) =>
+    request.approvalSteps.some((step) => step.approverId === currentUser.id)
+  );
+
+  useEffect(() => {
+    if (!canReviewLeave && activeTab === 'dual_approval') setActiveTab('requests');
+  }, [activeTab, canReviewLeave]);
 
   // Balances for current user
   const myBalances = leaveBalances.filter((b) => b.employeeId === currentUser.id);
@@ -100,6 +107,9 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const pendingDual = visibleLeaveRequests.filter(
     (r) => r.status === 'pending_approval' || r.status === 'partially_approved'
   );
+  const pendingForReview = pendingDual.filter((request) =>
+    isPeopleOperations || request.approvalSteps.some((step) => step.approverId === currentUser.id && step.status === 'pending')
+  );
 
   return (
     <div className="space-y-6">
@@ -112,8 +122,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           </div>
           <p className="text-xs text-slate-500">
             {isRtl
-              ? 'إدارة الإجازات والأذونات مع مسار الاعتماد الثنائي الإلزامي (م. محمد عمر و د. غادة).'
-              : 'Leave management with mandatory dual approval workflow (Eng. Mohamed Omar & Dr. Ghada).'}
+              ? 'إدارة الإجازات والأذونات مع مسار اعتماد تلقائي بحسب القسم وصلاحيات المسؤولين.'
+              : 'Leave management with an approval route determined by department and authorized reviewers.'}
           </p>
         </div>
 
@@ -128,28 +138,21 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
         </div>
       </div>
 
-      {/* Mandatory Dual Approval Policy Notice */}
+      {/* Department-routed approval policy */}
       <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white shadow-md flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-emerald-400 font-bold border border-white/10">
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="font-bold text-sm">{t('leaveApprovalWorkflow')}</h3>
+            <h3 className="font-bold text-sm">{isRtl ? 'مسار اعتماد الإجازات' : 'Leave approval route'}</h3>
             <p className="text-xs text-blue-200/80 max-w-2xl leading-relaxed">
-              {t('approvalRequirementText')}
+              {isRtl ? 'يُرسل كل طلب تلقائياً إلى المسؤولين المخوّلين حسب قسم الموظف، ولا يستطيع غير المخوّل الاطلاع على طلبات الآخرين أو اعتمادها.' : 'Each request is routed to authorized reviewers for the employee’s department. Unauthorised users cannot view or approve other employees’ requests.'}
             </p>
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs">
-          <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
-            1. {t('approverOmar')}
-          </span>
-          <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
-            2. {t('approverGhada')}
-          </span>
-        </div>
+        <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">{isRtl ? 'توجيه آمن حسب القسم' : 'Secure department routing'}</span>
       </div>
 
       {/* Tabs */}
@@ -164,7 +167,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
         >
           {t('navLeaveRequests')} ({visibleLeaveRequests.length})
         </button>
-        <button
+        {canReviewLeave && <button
           onClick={() => setActiveTab('dual_approval')}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
             activeTab === 'dual_approval'
@@ -173,12 +176,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           }`}
         >
           <span>{t('navDualApproval')}</span>
-          {pendingDual.length > 0 && (
+          {pendingForReview.length > 0 && (
             <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px]">
-              {pendingDual.length}
+              {pendingForReview.length}
             </span>
           )}
-        </button>
+        </button>}
         <button
           onClick={() => setActiveTab('balances')}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition ${
@@ -322,7 +325,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
       )}
 
       {/* TAB 2: DUAL APPROVAL CENTER */}
-      {activeTab === 'dual_approval' && (
+      {canReviewLeave && activeTab === 'dual_approval' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-800 text-sm">
@@ -334,24 +337,19 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendingDual.length === 0 ? (
+            {pendingForReview.length === 0 ? (
               <div className="col-span-2 p-12 bg-white rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
                 {isRtl
-                  ? 'تمت معالجة كافة الطلبات من قبل م. محمد عمر ود. غادة.'
-                  : 'All requests have been finalized by Eng. Mohamed Omar and Dr. Ghada.'}
+                  ? 'لا توجد طلبات بانتظار اعتمادكم حالياً.'
+                  : 'There are no requests awaiting your approval.'}
               </div>
             ) : (
-              pendingDual.map((req) => {
+              pendingForReview.map((req) => {
                 const requester = users.find((u) => u.id === req.employeeId);
-                const step1 = req.approvalSteps[0];
-                const step2 = req.approvalSteps[1];
 
                 // Permission rule: user cannot approve their own request!
                 const isRequester = currentUser.id === req.employeeId;
 
-                // Check which step currentUser can sign
-                const canSignStep1 = isFullAccessUser || currentUser.id === step1?.approverId || currentUser.roleId === 'ceo';
-                const canSignStep2 = isFullAccessUser || currentUser.id === step2?.approverId || currentUser.roleId === 'ceo';
                 const currentApprovalStep = req.approvalSteps.find((step) => step.status === 'pending' && (step.approverId === currentUser.id || isFullAccessUser));
 
                 const notes = approvalNotes[req.id] || '';
@@ -394,39 +392,15 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                       )}
                     </div>
 
-                    {/* Dual Approvers Status Boxes */}
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      {/* Step 1: Omar */}
-                      <div
-                        className={`p-2.5 rounded-xl border ${
-                          step1?.status === 'approved'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-amber-50/70 border-amber-200 text-amber-800'
-                        }`}
-                      >
-                        <span className="font-bold block truncate">{step1?.approverName}</span>
-                        <span className="text-[10px] block mt-0.5">
-                          {isRtl ? 'الحالة: ' : 'Status: '}
-                          <b>{step1?.status === 'approved' ? (isRtl ? 'معتمد' : 'APPROVED') : (isRtl ? 'معلق' : 'PENDING')}</b>
-                        </span>
-                        {step1?.notes && <p className="text-[10px] text-slate-500 italic mt-1">"{step1.notes}"</p>}
-                      </div>
-
-                      {/* Step 2: Ghada */}
-                      <div
-                        className={`p-2.5 rounded-xl border ${
-                          step2?.status === 'approved'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-amber-50/70 border-amber-200 text-amber-800'
-                        }`}
-                      >
-                        <span className="font-bold block truncate">{step2?.approverName}</span>
-                        <span className="text-[10px] block mt-0.5">
-                          {isRtl ? 'الحالة: ' : 'Status: '}
-                          <b>{step2?.status === 'approved' ? (isRtl ? 'معتمد' : 'APPROVED') : (isRtl ? 'معلق' : 'PENDING')}</b>
-                        </span>
-                        {step2?.notes && <p className="text-[10px] text-slate-500 italic mt-1">"{step2.notes}"</p>}
-                      </div>
+                    {/* The required reviewers are generated from the department route. */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      {req.approvalSteps.map((step) => (
+                        <div key={step.approverId} className={`p-2.5 rounded-xl border ${step.status === 'approved' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : step.status === 'rejected' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-amber-50/70 border-amber-200 text-amber-800'}`}>
+                          <span className="font-bold block truncate">{step.approverName}</span>
+                          <span className="text-[10px] block mt-0.5">{isRtl ? 'الحالة: ' : 'Status: '}<b>{step.status === 'approved' ? (isRtl ? 'معتمد' : 'APPROVED') : step.status === 'rejected' ? (isRtl ? 'مرفوض' : 'REJECTED') : (isRtl ? 'معلق' : 'PENDING')}</b></span>
+                          {step.notes && <p className="text-[10px] text-slate-500 italic mt-1">"{step.notes}"</p>}
+                        </div>
+                      ))}
                     </div>
 
                     {/* Action Controls for Approvers */}
@@ -448,48 +422,11 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                           </button>
                           <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">رفض</button>
                         </div>}
-                        {false && <div className="grid grid-cols-2 gap-2">
-                          {/* Sign as Step 1 (Eng. Omar) */}
-                          <div className="flex gap-1">
-                            <button
-                              disabled={step1?.status === 'approved'}
-                              onClick={() => handleLeaveApproval(req.id, step1.approverId, 'approved', notes)}
-                              className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-[11px] shadow-xs"
-                            >
-                              {isRtl ? 'توقيع م. عمر ✓' : 'Sign as Omar ✓'}
-                            </button>
-                            <button
-                              disabled={step1?.status === 'approved'}
-                              onClick={() => handleLeaveApproval(req.id, step1.approverId, 'rejected', notes)}
-                              className="px-2 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]"
-                            >
-                              ✕
-                            </button>
-                          </div>
-
-                          {/* Sign as Step 2 (Dr. Ghada) */}
-                          <div className="flex gap-1">
-                            <button
-                              disabled={step2?.status === 'approved'}
-                              onClick={() => handleLeaveApproval(req.id, step2.approverId, 'approved', notes)}
-                              className="flex-1 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white font-bold text-[11px] shadow-xs"
-                            >
-                              {isRtl ? 'توقيع د. غادة ✓' : 'Sign as Ghada ✓'}
-                            </button>
-                            <button
-                              disabled={step2?.status === 'approved'}
-                              onClick={() => handleLeaveApproval(req.id, step2.approverId, 'rejected', notes)}
-                              className="px-2 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>}
                       </div>
                     ) : (
                       <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg italic">
                         {isRtl
-                          ? 'لا يمكنك اعتماد طلبك الخاص؛ في انتظار توقيع الشركاء المؤسسين.'
+                          ? 'لا يمكنك اعتماد طلبك الخاص؛ بانتظار مراجعة المسؤولين المخوّلين.'
                           : 'You cannot sign off on your own leave request.'}
                       </p>
                     )}
@@ -729,10 +666,10 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600">
-                <b>{isRtl ? 'تنبيه الاعتماد الثنائي:' : 'Dual Approval Notice:'}</b>{' '}
+                <b>{isRtl ? 'تنبيه مسار الاعتماد:' : 'Approval route notice:'}</b>{' '}
                 {isRtl
-                  ? 'سيتم تحويل هذا الطلب آلياً إلى كلا الشريكين المؤسسين (م. محمد عمر و د. غادة) للاعتماد.'
-                  : 'This request will be routed to both Eng. Mohamed Omar and Dr. Ghada.'}
+                  ? 'سيتم تحويل هذا الطلب تلقائياً إلى المسؤولين المخوّلين حسب قسمك.'
+                  : 'This request will be routed automatically to authorised reviewers for your department.'}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
@@ -747,7 +684,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm"
                 >
-                  {isRtl ? 'إرسال الطلب للاعتماد الثنائي' : 'Submit for Dual Approval'}
+                  {isRtl ? 'إرسال طلب الاعتماد' : 'Submit request for approval'}
                 </button>
               </div>
             </form>
