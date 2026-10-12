@@ -53,7 +53,12 @@ const MainAppContent: React.FC = () => {
       case 'executive':
         return <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} />;
       case 'directory':
-        return <EmployeeDirectory />;
+        return isFullAccessUser ? <EmployeeDirectory /> : <EmployeeDashboard
+          onNavigate={(page) => setActivePage(page)}
+          onOpenCheckOutModal={() => setManualCheckoutModal(true)}
+          onRequestLeave={() => setActivePage('leaves_requests')}
+          onCreateTask={() => setActivePage('tasks_kanban')}
+        />;
       case 'orgchart':
         return <OrgStructureView />;
       case 'attendance_my':

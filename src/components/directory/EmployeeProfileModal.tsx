@@ -6,6 +6,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import {
   X,
   User as UserIcon,
+  LayoutDashboard,
   Shield,
   Clock,
   Wallet,
@@ -22,6 +23,8 @@ import {
   Download,
   Printer,
   Camera,
+  MapPin,
+  Inbox,
 } from 'lucide-react';
 import { exportIndividualEmployeeDossierCSV, triggerPrintReport } from '../../utils/exportUtils';
 import { UserAvatar } from '../common/UserAvatar';
@@ -37,8 +40,8 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   const { t, isRtl } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<
-    'personal' | 'permissions' | 'attendance' | 'leaves' | 'tasks' | 'kpi' | 'documents' | 'activity'
-  >('personal');
+    'overview' | 'personal' | 'permissions' | 'attendance' | 'leaves' | 'tasks' | 'kpi' | 'documents' | 'activity'
+  >('overview');
 
   // Editable fields state for HR/Admin
   const canEdit = isFullAccessUser;
@@ -47,7 +50,10 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   const [savedSuccess, setSavedSuccess] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  if (!user) return null;
+  // A modal can be reached from a stale UI state, so retain a component-level
+  // guard as well as the directory/sidebar guards. This is not an authority
+  // bypass; server policy remains the source of truth for data access.
+  if (!user || !isFullAccessUser) return null;
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,8 +75,14 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   const userBalances = leaveBalances.filter((b) => b.employeeId === user.id);
   const userLeaves = leaveRequests.filter((r) => r.employeeId === user.id);
   const userTasks = tasks.filter((t) => t.assigneeIds.includes(user.id));
-  const userKpi = kpiRecords.find((k) => k.employeeId === user.id && k.month === 9);
+  const userKpi = kpiRecords
+    .filter((k) => k.employeeId === user.id)
+    .sort((a, b) => (b.year - a.year) || (b.month - a.month))[0];
   const userLogs = auditLogs.filter((a) => a.userId === user.id);
+  const completedTasks = userTasks.filter((task) => task.status === 'completed').length;
+  const activeTasks = userTasks.filter((task) => ['in_progress', 'submitted', 'needs_revision', 'blocked', 'overdue'].includes(task.status)).length;
+  const pendingLeaves = userLeaves.filter((request) => ['pending_approval', 'partially_approved'].includes(request.status)).length;
+  const latestAttendance = [...userAttendance].sort((a, b) => b.date.localeCompare(a.date))[0];
 
   const handleSaveProfile = () => {
     updateUser({
@@ -83,6 +95,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   };
 
   const tabs = [
+    { id: 'overview', label: isRtl ? 'نظرة تشغيلية' : 'Operational brief', icon: LayoutDashboard },
     { id: 'personal', label: isRtl ? 'المعلومات الشخصية والوظيفية' : 'Personal & Employment', icon: UserIcon },
     { id: 'permissions', label: isRtl ? 'الصلاحيات والنظام' : 'Role & Permissions', icon: Shield },
     { id: 'attendance', label: isRtl ? 'الحضور والانصراف' : 'Attendance Summary', icon: Clock },
@@ -207,6 +220,43 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-600" />
               <span>{t('success')}</span>
+            </div>
+          )}
+
+          {/* OPERATIONAL BRIEF: controlled case-file front page */}
+          {activeTab === 'overview' && (
+            <div className="space-y-5 text-xs">
+              <section className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-900 px-4 py-3 flex items-center justify-between text-white">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-blue-200">{isRtl ? 'ملخص تشغيلي' : 'Operational dossier summary'}</p>
+                    <h3 className="mt-0.5 font-bold">{isRtl ? 'حالة الموظف الحالية' : 'Current employee position'}</h3>
+                  </div>
+                  <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${user.status === 'active' ? 'bg-emerald-400/20 text-emerald-200' : 'bg-slate-700 text-slate-200'}`}>
+                    {user.status === 'active' ? (isRtl ? 'حساب نشط' : 'Active account') : (isRtl ? 'حساب غير نشط' : 'Inactive account')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100 bg-white">
+                  <DossierMetric label={isRtl ? 'أحدث KPI' : 'Latest KPI'} value={userKpi ? `${userKpi.totalScore}%` : (isRtl ? 'غير متاح' : 'No KPI')} note={userKpi ? `${userKpi.month}/${userKpi.year}` : (isRtl ? 'لا يوجد سجل' : 'No record')} accent="blue" />
+                  <DossierMetric label={isRtl ? 'الحضور الأخير' : 'Latest attendance'} value={latestAttendance ? `${latestAttendance.netWorkedHours}h` : '—'} note={latestAttendance ? `${latestAttendance.date} · ${latestAttendance.status.replaceAll('_', ' ')}` : (isRtl ? 'لا يوجد سجل' : 'No record')} accent="emerald" />
+                  <DossierMetric label={isRtl ? 'تسليم المهام' : 'Task delivery'} value={`${completedTasks}/${userTasks.length}`} note={activeTasks ? `${activeTasks} ${isRtl ? 'نشطة' : 'active'}` : (isRtl ? 'لا توجد مهام نشطة' : 'No active tasks')} accent="blue" />
+                  <DossierMetric label={isRtl ? 'طلبات الإجازة' : 'Leave requests'} value={String(userLeaves.length)} note={pendingLeaves ? `${pendingLeaves} ${isRtl ? 'قيد المراجعة' : 'awaiting review'}` : (isRtl ? 'لا توجد معلقة' : 'None pending')} accent="emerald" />
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-4">
+                <section className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div><p className="font-bold text-slate-900">{isRtl ? 'المهام الأخيرة' : 'Recent delivery'}</p><p className="mt-0.5 text-[10px] text-slate-400">{isRtl ? 'من سجل المهام المسندة' : 'From assigned task records'}</p></div>
+                    <button onClick={() => setActiveTab('tasks')} className="text-[10px] font-bold text-blue-700 hover:underline">{isRtl ? 'كل المهام' : 'All tasks'}</button>
+                  </div>
+                  {userTasks.length === 0 ? <EmptyDossierState label={isRtl ? 'لا توجد مهام مسندة.' : 'No assigned tasks.'} /> : <div className="space-y-2">{userTasks.slice(0, 3).map((task) => <div key={task.id} className="border-l-2 border-blue-500 bg-slate-50 px-3 py-2.5"><div className="flex justify-between gap-3"><span className="font-semibold text-slate-800">{task.title}</span><span className="font-mono text-blue-700">{task.progressPercent}%</span></div><p className="mt-1 text-[10px] text-slate-500">{task.projectName} · {isRtl ? 'استحقاق' : 'Due'} {task.dueDate}</p></div>)}</div>}
+                </section>
+                <section className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="mb-3"><p className="font-bold text-slate-900">{isRtl ? 'سجل المراجعة' : 'Audit trail'}</p><p className="mt-0.5 text-[10px] text-slate-400">{isRtl ? 'أحدث النشاط المسجل' : 'Latest recorded activity'}</p></div>
+                  {userLogs.length === 0 ? <EmptyDossierState label={isRtl ? 'لا يوجد نشاط مسجل.' : 'No logged activity.'} /> : <ol className="space-y-3 border-l border-slate-200 pl-3">{userLogs.slice(0, 4).map((log) => <li key={log.id} className="relative"><span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-blue-500 ring-4 ring-white" /><p className="font-semibold text-slate-700">{log.action}</p><p className="mt-0.5 text-[10px] text-slate-400">{new Date(log.timestamp).toLocaleString()}</p></li>)}</ol>}
+                </section>
+              </div>
             </div>
           )}
 
@@ -343,7 +393,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
           {/* TAB 3: ATTENDANCE */}
           {activeTab === 'attendance' && (
             <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
                   <span className="text-slate-400 block mb-1">{isRtl ? 'إجمالي السجلات' : 'Total Records'}</span>
                   <span className="text-xl font-black text-slate-900">{userAttendance.length}</span>
@@ -362,15 +412,19 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-start">
+              {userAttendance.length === 0 ? (
+                <EmptyDossierState label={isRtl ? 'لا توجد سجلات حضور لهذا الموظف بعد.' : 'No attendance records are available for this employee yet.'} />
+              ) : (
+              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                <table className="w-full min-w-[760px] text-start">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
                     <tr>
                       <th className="p-2.5 text-start">{t('date')}</th>
                       <th className="p-2.5 text-start">{t('checkedInAt')}</th>
+                      <th className="p-2.5 text-start">{isRtl ? 'الانصراف' : 'Check-out'}</th>
                       <th className="p-2.5 text-start">{t('netHours')}</th>
-                      <th className="p-2.5 text-start">{t('overtimeHours')}</th>
                       <th className="p-2.5 text-start">{t('status')}</th>
+                      <th className="p-2.5 text-start">{isRtl ? 'الموقع / المراجعة' : 'Location / review'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -378,18 +432,26 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
                       <tr key={rec.id} className="hover:bg-slate-50/60">
                         <td className="p-2.5 font-medium">{rec.date}</td>
                         <td className="p-2.5">{rec.checkInTime}</td>
+                        <td className="p-2.5">{rec.checkOutTime || '—'}</td>
                         <td className="p-2.5 font-bold text-blue-700">{rec.netWorkedHours}h</td>
-                        <td className="p-2.5 font-bold text-emerald-700">{rec.overtimeHours}h</td>
                         <td className="p-2.5">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-semibold">
                             {t(rec.status as any)}
                           </span>
+                        </td>
+                        <td className="p-2.5">
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            <span>{rec.distanceMeters !== undefined ? `${Math.round(rec.distanceMeters)}m` : (isRtl ? 'غير متاح' : 'Not available')}</span>
+                            {rec.reviewStatus && <span className="font-semibold text-blue-700">· {rec.reviewStatus}</span>}
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           )}
 
@@ -410,9 +472,11 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
                 ))}
               </div>
 
+              {userBalances.length === 0 && <EmptyDossierState label={isRtl ? 'لا توجد أرصدة إجازات مسجلة.' : 'No leave balances are recorded for this employee.'} />}
+
               <h4 className="font-bold text-slate-800 pt-2">{isRtl ? 'سجل طلبات الإجازة' : 'Leave Requests History'}</h4>
               <div className="space-y-2">
-                {userLeaves.map((lr) => (
+                {userLeaves.length === 0 ? <EmptyDossierState label={isRtl ? 'لا توجد طلبات إجازة بعد.' : 'No leave requests have been submitted.'} /> : userLeaves.map((lr) => (
                   <div key={lr.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                     <div>
                       <span className="font-bold text-slate-800 capitalize">
@@ -446,7 +510,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
           {/* TAB 5: TASKS */}
           {activeTab === 'tasks' && (
             <div className="space-y-3 text-xs">
-              {userTasks.map((t) => (
+              {userTasks.length === 0 ? <EmptyDossierState label={isRtl ? 'لا توجد مهام مسندة لهذا الموظف.' : 'No tasks are assigned to this employee.'} /> : userTasks.map((t) => (
                 <div key={t.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-800">{t.title}</span>
@@ -469,7 +533,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
             <div className="space-y-4 text-xs">
               <div className="p-4 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-blue-200 block text-xs">{isRtl ? 'تقييم شهر سبتمبر 2026' : 'September 2026 KPI'}</span>
+                  <span className="text-blue-200 block text-xs">{isRtl ? `تقييم ${userKpi.month}/${userKpi.year}` : `Latest KPI · ${userKpi.month}/${userKpi.year}`}</span>
                   <span className="text-2xl font-black">{userKpi.totalScore}%</span>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold">
@@ -497,31 +561,11 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
               </div>
             </div>
           )}
+          {activeTab === 'kpi' && !userKpi && <EmptyDossierState label={isRtl ? 'لا يوجد تقييم KPI منشور لهذا الموظف.' : 'No KPI record is available for this employee.'} />}
 
           {/* TAB 7: DOCUMENTS */}
           {activeTab === 'documents' && (
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <div>
-                    <span className="font-bold text-slate-800 block">Employment_Contract.pdf</span>
-                    <span className="text-slate-400 text-[10px]">Verified • Signed on {user.joiningDate}</span>
-                  </div>
-                </div>
-                <button className="text-xs text-blue-600 font-bold hover:underline">Download</button>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <FileText className="w-4 h-4 text-emerald-600" />
-                  <div>
-                    <span className="font-bold text-slate-800 block">National_ID_Passport_Copy.pdf</span>
-                    <span className="text-slate-400 text-[10px]">HR Verified</span>
-                  </div>
-                </div>
-                <button className="text-xs text-blue-600 font-bold hover:underline">Download</button>
-              </div>
-            </div>
+            <EmptyDossierState label={isRtl ? 'لا توجد مستندات موظف متاحة من مصدر بيانات مصرح به.' : 'No employee documents are available from an authorised data source.'} />
           )}
 
           {/* TAB 8: ACTIVITY LOGS */}
@@ -549,3 +593,18 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
     </div>
   );
 };
+
+const EmptyDossierState: React.FC<{ label: string }> = ({ label }) => (
+  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-xs text-slate-500">
+    <Inbox className="mx-auto mb-2 h-5 w-5 text-slate-300" />
+    {label}
+  </div>
+);
+
+const DossierMetric: React.FC<{ label: string; value: string; note: string; accent: 'blue' | 'emerald' }> = ({ label, value, note, accent }) => (
+  <div className="p-3.5">
+    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+    <p className={`mt-1 text-xl font-black ${accent === 'blue' ? 'text-blue-900' : 'text-emerald-800'}`}>{value}</p>
+    <p className="mt-1 text-[10px] text-slate-500">{note}</p>
+  </div>
+);

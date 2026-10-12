@@ -13,13 +13,15 @@ import {
   ExternalLink,
   Download,
   Camera,
+  ShieldAlert,
+  ScanSearch,
 } from 'lucide-react';
 import { EmployeeProfileModal } from './EmployeeProfileModal';
 import { exportToCSV, exportIndividualEmployeeDossierCSV } from '../../utils/exportUtils';
 import { UserAvatar } from '../common/UserAvatar';
 
 export const EmployeeDirectory: React.FC = () => {
-  const { users, updateUser } = useAuth();
+  const { users, updateUser, isFullAccessUser } = useAuth();
   const { attendanceRecords, kpiRecords, leaveBalances, leaveRequests, tasks } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -28,6 +30,22 @@ export const EmployeeDirectory: React.FC = () => {
   const [selectedUserForModal, setSelectedUserForModal] = useState<User | null>(null);
   const [uploadingEmpId, setUploadingEmpId] = useState<string | null>(null);
   const cardFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // This is deliberately a second UI boundary in addition to routing and RLS.
+  // Only the named full-access leaders can inspect another employee's dossier.
+  if (!isFullAccessUser) {
+    return (
+      <section className="max-w-xl mx-auto mt-12 bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-xs">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <h1 className="text-lg font-bold text-slate-900">{isRtl ? 'وصول مقيّد' : 'Restricted workspace'}</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          {isRtl ? 'عرض ملف الموظف الشامل متاح للمسؤولين المخولين فقط.' : 'The employee 360° workspace is available only to authorised full-access administrators.'}
+        </p>
+      </section>
+    );
+  }
 
   const handleCardPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,7 +104,7 @@ export const EmployeeDirectory: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-5 h-5 text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-900">{t('navEmployeeDir')}</h1>
+            <h1 className="text-xl font-bold text-slate-900">{isRtl ? 'ملف الموظف 360°' : 'Employee 360°'}</h1>
             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">
               {users.length} {isRtl ? 'موظفاً' : 'Employees'}
             </span>
@@ -94,7 +112,7 @@ export const EmployeeDirectory: React.FC = () => {
           <p className="text-xs text-slate-500">
             {isRtl
               ? 'دليل فريق العمل المتكامل لشركة جيوانفورماتكس مع بيانات الاتصال والملفات الوظيفية.'
-              : 'Complete Geoinformatics workforce roster with role profiles and credentials.'}
+              : 'A controlled administrator workspace for selecting and reviewing complete workforce dossiers.'}
           </p>
         </div>
 
@@ -142,7 +160,9 @@ export const EmployeeDirectory: React.FC = () => {
       {/* Employee Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredUsers.map((employee) => {
-          const kpi = kpiRecords.find((k) => k.employeeId === employee.id && k.month === 9);
+          const kpi = kpiRecords
+            .filter((k) => k.employeeId === employee.id)
+            .sort((a, b) => (b.year - a.year) || (b.month - a.month))[0];
           const att = attendanceRecords.find((a) => a.employeeId === employee.id);
 
           return (
@@ -204,8 +224,11 @@ export const EmployeeDirectory: React.FC = () => {
               {/* Metrics Pills */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
                 <div className="p-2 bg-slate-50 rounded-lg text-center">
-                  <span className="text-[10px] text-slate-400 block">{isRtl ? 'تقييم سبتمبر' : 'Sept KPI'}</span>
-                  <span className="font-bold text-blue-900">{kpi?.totalScore ?? 92}%</span>
+                  <span className="text-[10px] text-slate-400 block">{isRtl ? 'أحدث KPI' : 'Latest KPI'}</span>
+                  <span className={kpi ? 'font-bold text-blue-900' : 'font-semibold text-slate-400'}>
+                    {kpi ? `${kpi.totalScore}%` : (isRtl ? 'غير متاح' : 'No KPI')}
+                  </span>
+                  {kpi && <span className="block text-[9px] text-slate-400">{kpi.month}/{kpi.year}</span>}
                 </div>
                 <div className="p-2 bg-slate-50 rounded-lg text-center">
                   <span className="text-[10px] text-slate-400 block">{isRtl ? 'القسم' : 'Department'}</span>
@@ -221,7 +244,7 @@ export const EmployeeDirectory: React.FC = () => {
                   onClick={() => setSelectedUserForModal(employee)}
                   className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition text-center"
                 >
-                  {isRtl ? 'عرض الملف' : 'Profile'}
+                  <span className="inline-flex items-center justify-center gap-1.5"><ScanSearch className="w-3.5 h-3.5" />{isRtl ? 'عرض 360°' : 'Open 360°'}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -229,7 +252,9 @@ export const EmployeeDirectory: React.FC = () => {
                     const empLeaves = leaveRequests.filter((l) => l.employeeId === employee.id);
                     const empBalances = leaveBalances.filter((b) => b.employeeId === employee.id);
                     const empTasks = tasks.filter((t) => t.assigneeIds.includes(employee.id));
-                    const empKpi = kpiRecords.find((k) => k.employeeId === employee.id && k.month === 9);
+                    const empKpi = kpiRecords
+                      .filter((k) => k.employeeId === employee.id)
+                      .sort((a, b) => (b.year - a.year) || (b.month - a.month))[0];
                     exportIndividualEmployeeDossierCSV(employee, empAtt, empLeaves, empBalances, empTasks, empKpi);
                   }}
                   title={isRtl ? 'تنزيل الملف الوظيفي الشامل (CSV)' : 'Download Employee Dossier (CSV)'}
