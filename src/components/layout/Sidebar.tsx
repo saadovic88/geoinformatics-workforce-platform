@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import {
@@ -29,6 +29,7 @@ import {
   Sun,
   Moon,
   X,
+  ChevronDown,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { CompanyLogo } from '../common/CompanyLogo';
@@ -81,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const canApproveLeave = isFullAccessUser || ['gis_manager', 'rs_manager'].includes(currentUser.roleId);
   const canViewPeopleDirectory = isPlatformAdmin;
   const canManageSettings = isPlatformAdmin;
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const navGroups = [
     {
@@ -185,13 +187,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {navGroups.map((group, idx) => {
             const visibleItems = group.items.filter((item) => item.show);
             if (visibleItems.length === 0) return null;
+            const isExpanded = expandedGroups[group.titleEn] !== false;
 
             return (
               <div key={idx} className="space-y-1">
-                <div className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  {isRtl ? group.titleAr : group.titleEn}
-                </div>
-                {visibleItems.map((item) => {
+                <button
+                  type="button"
+                  onClick={() => setExpandedGroups((previous) => ({ ...previous, [group.titleEn]: !isExpanded }))}
+                  aria-expanded={isExpanded}
+                  className="w-full min-h-8 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between rounded-lg hover:bg-slate-800 hover:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-inset"
+                >
+                  <span>{isRtl ? group.titleAr : group.titleEn}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                </button>
+                {isExpanded && visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activePage === item.id;
                   return (
