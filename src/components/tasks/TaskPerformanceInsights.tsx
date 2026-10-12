@@ -39,6 +39,78 @@ interface TaskPerformanceInsightsProps {
   embeddedInDashboard?: boolean;
 }
 
+const FALLBACK_PROJECT_LABEL = 'Untitled project';
+const MAX_AXIS_LABEL_LENGTH = 30;
+
+/**
+ * Converts imported names, attachment paths, and long free-form titles into
+ * a safe manager-facing project label. The original value is used only as an
+ * internal aggregation key and is never rendered by these charts.
+ */
+const getProjectLabel = (value?: string) => {
+  const source = value?.trim();
+  if (!source) return FALLBACK_PROJECT_LABEL;
+
+  const isPathOrAttachment = /^(?:attachment|file):\/\/|^[a-zA-Z]:[\\/]|[\\/](?:attachments?|uploads?|temp|tmp|users?|assets?)[\\/]/i.test(source);
+  const candidate = isPathOrAttachment
+    ? source.split(/[\\/]/).filter(Boolean).pop()?.replace(/\?.*$/, '') ?? ''
+    : source;
+  const withoutExtension = candidate.replace(/\.(?:pdf|docx?|xlsx?|csv|zip|rar|png|jpe?g|webp)$/i, '');
+  const normalized = withoutExtension
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // UUIDs and bare attachment ids don't identify a project in a useful way.
+  if (!normalized || /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(normalized)) {
+    return FALLBACK_PROJECT_LABEL;
+  }
+
+  // Preserve the complete safe project name for the tooltip and audit table.
+  // Only the axis renderer below abbreviates it for the available chart width.
+  return normalized;
+};
+
+const getShortProjectLabel = (label: string) =>
+  label.length > MAX_AXIS_LABEL_LENGTH
+    ? `${label.slice(0, MAX_AXIS_LABEL_LENGTH - 1).trimEnd()}…`
+    : label;
+
+const ProjectAxisTick = ({
+  x = 0,
+  y = 0,
+  payload,
+  compact = false,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+  compact?: boolean;
+}) => {
+  const fullLabel = payload?.value || FALLBACK_PROJECT_LABEL;
+  const label = compact && fullLabel.length > 20
+    ? `${fullLabel.slice(0, 19).trimEnd()}…`
+    : getShortProjectLabel(fullLabel);
+  const words = label.split(' ');
+  const lines = words.reduce<string[]>((result, word) => {
+    const currentLine = result[result.length - 1];
+    if (!currentLine || `${currentLine} ${word}`.length > 14) result.push(word);
+    else result[result.length - 1] = `${currentLine} ${word}`;
+    return result;
+  }, []);
+  const visibleLines = lines.length > 2 ? [`${lines[0]} ${lines[1]}`, '…'] : lines;
+
+  return (
+    <text x={x} y={y + 12} textAnchor="middle" fill="#64748b" fontSize={10}>
+      {visibleLines.map((line, index) => (
+        <tspan key={`${line}-${index}`} x={x} dy={index === 0 ? 0 : 12}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+};
+
 export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = ({
   embeddedInDashboard = false,
 }) => {
@@ -47,6 +119,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
 
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all');
   const [timeframe, setTimeframe] = useState<'all' | 'q3' | 'q4'>('all');
+  const [chartWidth, setChartWidth] = useState(0);
 
   // Filter tasks based on selected controls
   const filteredTasks = useMemo(() => {
@@ -62,6 +135,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
       string,
       {
         projectName: string;
+        displayName: string;
         shortName: string;
         total: number;
         completed: number;
@@ -73,14 +147,13 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
     > = {};
 
     filteredTasks.forEach((task) => {
-      const pName = task.projectName || 'General GIS Operations';
+      const pName = task.projectName || FALLBACK_PROJECT_LABEL;
       if (!projectMap[pName]) {
-        // Create shortened clean label for charts
-        const words = pName.split(' ');
-        const short = words.length > 3 ? `${words.slice(0, 3).join(' ')}...` : pName;
+        const displayName = getProjectLabel(task.projectName);
         projectMap[pName] = {
           projectName: pName,
-          shortName: short,
+          displayName,
+          shortName: getShortProjectLabel(displayName),
           total: 0,
           completed: 0,
           inProgress: 0,
@@ -103,6 +176,16 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
     }));
   }, [filteredTasks]);
 
+  // Keep labels legible on compact cards: mobile shows a representative subset
+  // of evenly spaced projects while tooltips/table retain every full project name.
+  const chartTickInterval = useMemo(() => {
+    const projectCount = projectCompletionData.length;
+    if (projectCount <= 1 || chartWidth <= 0) return 0;
+    const targetLabelWidth = chartWidth < 480 ? 96 : 74;
+    const maxVisibleTicks = Math.max(2, Math.floor(chartWidth / targetLabelWidth));
+    return Math.max(0, Math.ceil(projectCount / maxVisibleTicks) - 1);
+  }, [chartWidth, projectCompletionData.length]);
+
   // 2. Average Turnaround Time per Project
   // Turnaround measured in days and hours: (Estimated vs Actual Logged)
   const turnaroundData = useMemo(() => {
@@ -110,6 +193,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
       string,
       {
         projectName: string;
+        displayName: string;
         shortName: string;
         estimatedTotalHours: number;
         actualTotalHours: number;
@@ -118,13 +202,13 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
     > = {};
 
     filteredTasks.forEach((task) => {
-      const pName = task.projectName || 'General GIS Operations';
+      const pName = task.projectName || FALLBACK_PROJECT_LABEL;
       if (!projectTimeMap[pName]) {
-        const words = pName.split(' ');
-        const short = words.length > 3 ? `${words.slice(0, 3).join(' ')}...` : pName;
+        const displayName = getProjectLabel(task.projectName);
         projectTimeMap[pName] = {
           projectName: pName,
-          shortName: short,
+          displayName,
+          shortName: getShortProjectLabel(displayName),
           estimatedTotalHours: 0,
           actualTotalHours: 0,
           taskCount: 0,
@@ -144,6 +228,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
 
       return {
         projectName: p.projectName,
+        displayName: p.displayName,
         shortName: p.shortName,
         estimatedDays: avgEstDays,
         actualDays: avgActDays,
@@ -402,7 +487,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
       {/* Main Charts Row 1: Task Completion Rates & Turnaround Time */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* CHART 1: Task Completion Rates per Project (Composed Bar + Line) */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="min-w-0 bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h3 className="font-bold text-slate-900 text-sm">
@@ -417,24 +502,32 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
             </span>
           </div>
 
-          <div className="h-72 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 w-full min-w-0 pt-2" aria-label="Project delivery rate chart">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              onResize={(width) => setChartWidth((current) => (current === width ? current : width))}
+            >
               <ComposedChart
                 data={projectCompletionData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
+                margin={{ top: 28, right: 20, left: 8, bottom: 42 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
-                  dataKey="shortName"
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  angle={-15}
-                  textAnchor="end"
-                  interval={0}
+                  dataKey="displayName"
+                  tick={<ProjectAxisTick compact={chartWidth < 480} />}
+                  height={42}
+                  interval={chartTickInterval}
+                  tickLine={false}
+                  axisLine={{ stroke: '#cbd5e1' }}
                 />
                 <YAxis
                   yAxisId="left"
                   tick={{ fontSize: 11, fill: '#64748b' }}
                   allowDecimals={false}
+                  width={32}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <YAxis
                   yAxisId="right"
@@ -442,6 +535,9 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                   unit="%"
                   domain={[0, 100]}
                   tick={{ fontSize: 11, fill: '#64748b' }}
+                  width={42}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <Tooltip
                   contentStyle={{
@@ -455,8 +551,9 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                     if (name === 'Completion Rate') return [`${value}%`, name];
                     return [value, name];
                   }}
+                  labelFormatter={(label) => `Project: ${label}`}
                 />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Legend verticalAlign="top" align="right" height={24} wrapperStyle={{ fontSize: '11px' }} />
                 <Bar
                   yAxisId="left"
                   dataKey="completed"
@@ -488,7 +585,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
         </div>
 
         {/* CHART 2: Average Turnaround Time per Project (Target vs Actual Days) */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="min-w-0 bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h3 className="font-bold text-slate-900 text-sm">
@@ -503,23 +600,31 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
             </span>
           </div>
 
-          <div className="h-72 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 w-full min-w-0 pt-2" aria-label="Project turnaround time chart">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              onResize={(width) => setChartWidth((current) => (current === width ? current : width))}
+            >
               <BarChart
                 data={turnaroundData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
+                margin={{ top: 28, right: 20, left: 8, bottom: 42 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
-                  dataKey="shortName"
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  angle={-15}
-                  textAnchor="end"
-                  interval={0}
+                  dataKey="displayName"
+                  tick={<ProjectAxisTick compact={chartWidth < 480} />}
+                  height={42}
+                  interval={chartTickInterval}
+                  tickLine={false}
+                  axisLine={{ stroke: '#cbd5e1' }}
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: '#64748b' }}
                   unit="d"
+                  width={38}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <Tooltip
                   contentStyle={{
@@ -530,8 +635,9 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                     fontSize: '12px',
                   }}
                   formatter={(value: any, name: any) => [`${value} days`, name]}
+                  labelFormatter={(label) => `Project: ${label}`}
                 />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Legend verticalAlign="top" align="right" height={24} wrapperStyle={{ fontSize: '11px' }} />
                 <Bar
                   dataKey="estimatedDays"
                   name="Target Turnaround (Days)"
@@ -659,8 +765,8 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
 
                   return (
                     <tr key={proj.projectName} className="hover:bg-slate-50/70 transition">
-                      <td className="p-3 font-bold text-slate-900 max-w-xs truncate">
-                        {proj.projectName}
+                      <td className="p-3 font-bold text-slate-900 max-w-xs truncate" title={proj.displayName}>
+                        {proj.displayName}
                       </td>
                       <td className="p-3 font-semibold text-blue-700">
                         <div className="flex items-center gap-2">
