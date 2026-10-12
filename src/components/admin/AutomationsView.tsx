@@ -8,7 +8,7 @@ export const AutomationsView: React.FC = () => {
   const { runAutomations, lastAutomationRun } = useData();
   const { t, isRtl } = useLanguage();
   const { currentUser, isFullAccessUser } = useAuth();
-  const canRun = isFullAccessUser || currentUser.roleId === 'admin_manager';
+  const canRun = isFullAccessUser;
 
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([

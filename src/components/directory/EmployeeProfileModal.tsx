@@ -41,7 +41,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   >('personal');
 
   // Editable fields state for HR/Admin
-  const canEdit = isFullAccessUser || currentUser.roleId === 'admin_manager' || currentUser.id === user?.id;
+  const canEdit = isFullAccessUser;
   const [phone, setPhone] = useState(user?.phone || '');
   const [email, setEmail] = useState(user?.email || '');
   const [savedSuccess, setSavedSuccess] = useState(false);

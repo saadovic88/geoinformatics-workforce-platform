@@ -36,7 +36,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
   const { kpiRecords, updateKPIRecord, attendanceRecords, tasks } = useData();
   const { t, isRtl } = useLanguage();
 
-  const [mode, setMode] = useState<'my' | 'team' | 'reports'>(initialMode);
+  const [mode, setMode] = useState<'my' | 'team' | 'reports'>(isFullAccessUser ? initialMode : 'my');
   const [selectedMonth, setSelectedMonth] = useState<number>(9);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(currentUser.id);
   const [isQuarterlyModalOpen, setIsQuarterlyModalOpen] = useState(false);
@@ -163,8 +163,8 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
     exportToCSV(`Geoinformatics_KPI_Summary_Month_${selectedMonth}_2026`, headers, rows);
   };
 
-  const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || ['ceo', 'co_founder'].includes(currentUser.roleId);
-  const canViewCompanyReporting = isFullAccessUser || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const isManager = isFullAccessUser;
+  const canViewCompanyReporting = isFullAccessUser;
 
   return (
     <div className="space-y-6">
@@ -668,7 +668,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
       )}
 
       {/* MODE 3: REPORTS VIEW */}
-      {mode === 'reports' && (
+      {mode === 'reports' && isFullAccessUser && (
         <div className="space-y-6">
           {/* Quarterly Team Performance Trend Line Chart */}
           <QuarterlyTeamTrendChart

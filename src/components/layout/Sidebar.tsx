@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentUser, hasPermission, isFullAccessUser } = useAuth();
   const { t, isRtl, language, setLanguage } = useLanguage();
 
-  const isPlatformAdmin = currentUser.roleId === 'ceo' || isFullAccessUser;
+  const isPlatformAdmin = isFullAccessUser;
   const isExecutive = ['ceo', 'co_founder'].includes(currentUser.roleId);
   const isManager = isFullAccessUser || currentUser.roleId.includes('manager') || isExecutive || currentUser.roleId === 'sys_admin';
   const canViewPeopleDirectory = isPlatformAdmin || currentUser.roleId === 'admin_manager' || currentUser.roleId === 'hr_officer';

@@ -42,7 +42,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
   const [selectedException, setSelectedException] = useState<AttendanceRecord | null>(null);
   const [exceptionNotes, setExceptionNotes] = useState('');
 
-  const isExecutive = isFullAccessUser || ['ceo', 'co_founder'].includes(currentUser.roleId);
+  const isExecutive = isFullAccessUser;
   const isManager = isExecutive || currentUser.roleId.includes('manager');
   const allowedEmployeeIds = new Set(
     isExecutive
@@ -104,7 +104,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
     setExceptionNotes('');
   };
 
-  const canReview = isFullAccessUser || currentUser.roleId === 'admin_manager' || currentUser.roleId === 'hr_officer';
+  const canReview = isFullAccessUser;
 
   return (
     <div className="space-y-6">

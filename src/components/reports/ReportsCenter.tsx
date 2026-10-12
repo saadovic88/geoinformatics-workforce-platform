@@ -38,7 +38,7 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({ initialReport = 'd
   const { users, currentUser, isFullAccessUser } = useAuth();
   const { attendanceRecords, leaveRequests, leaveBalances, tasks, kpiRecords, auditLogs } = useData();
   const { t, isRtl } = useLanguage();
-  const canAccessCompanyReports = isFullAccessUser || currentUser.roleId === 'ceo';
+  const canAccessCompanyReports = isFullAccessUser;
 
   // Export Mode: 'all_data' (تنزيل المعلومات كلها) vs 'per_person' (تنزيل لكل شخص)
   const [downloadScope, setDownloadScope] = useState<'all_data' | 'per_person'>('all_data');

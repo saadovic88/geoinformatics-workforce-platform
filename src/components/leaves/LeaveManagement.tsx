@@ -53,7 +53,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   // Rejection/Approval comment input
   const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
 
-  const isPeopleOperations = isFullAccessUser || ['ceo', 'co_founder', 'admin_manager', 'hr_officer'].includes(currentUser.roleId);
+  const isPeopleOperations = isFullAccessUser;
   const visibleLeaveRequests = leaveRequests.filter((request) =>
     request.employeeId === currentUser.id ||
     isPeopleOperations ||

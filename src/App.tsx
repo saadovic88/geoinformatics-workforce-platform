@@ -39,7 +39,7 @@ const MainAppContent: React.FC = () => {
   const renderActiveView = () => {
     switch (activePage) {
       case 'dashboard':
-        if (isFullAccessUser || ['ceo', 'co_founder'].includes(currentUser.roleId)) {
+        if (isFullAccessUser) {
           return <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} />;
         }
         return (
