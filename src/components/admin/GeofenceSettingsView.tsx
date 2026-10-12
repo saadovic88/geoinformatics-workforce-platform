@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GeofenceZone } from '../../types';
-import { MapPin, Plus, Save, CheckCircle, ShieldCheck, Navigation } from 'lucide-react';
+import { MapPin, Plus, Save, CheckCircle, Trash2 } from 'lucide-react';
 import { LeafletMap } from '../common/LeafletMap';
+import { useAuth } from '../../context/AuthContext';
 
 export const GeofenceSettingsView: React.FC = () => {
-  const { geofenceZones, updateGeofenceZone, addGeofenceZone } = useData();
+  const { geofenceZones, updateGeofenceZone, addGeofenceZone, deleteGeofenceZone } = useData();
   const { t, isRtl } = useLanguage();
+  const { isFullAccessUser } = useAuth();
 
   const [activeZoneId, setActiveZoneId] = useState<string>(geofenceZones[0]?.id || 'zone_cairo_hq');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -70,6 +72,14 @@ export const GeofenceSettingsView: React.FC = () => {
     setNewZoneNameAr('');
   };
 
+  const handleDeleteZone = () => {
+    if (!activeZone || activeZone.isPrimary) return;
+    if (!window.confirm(`Delete the office zone "${activeZone.nameEn}"? This cannot be undone.`)) return;
+    if (!deleteGeofenceZone(activeZone.id)) return;
+    const nextZone = geofenceZones.find((zone) => zone.id !== activeZone.id);
+    if (nextZone) handleSelectZone(nextZone);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -88,7 +98,8 @@ export const GeofenceSettingsView: React.FC = () => {
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-1.5"
+          disabled={!isFullAccessUser}
+          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-xs shadow-xs transition flex items-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{isRtl ? 'إضافة نطاق فرعي جديد' : 'Add New Office Zone'}</span>
@@ -166,7 +177,8 @@ export const GeofenceSettingsView: React.FC = () => {
               type="text"
               value={nameEn}
               onChange={(e) => setNameEn(e.target.value)}
-              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium"
+              disabled={!isFullAccessUser}
+              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 disabled:cursor-not-allowed disabled:opacity-60 text-xs font-medium"
             />
           </div>
 
@@ -176,7 +188,8 @@ export const GeofenceSettingsView: React.FC = () => {
               type="text"
               value={nameAr}
               onChange={(e) => setNameAr(e.target.value)}
-              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium"
+              disabled={!isFullAccessUser}
+              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 disabled:cursor-not-allowed disabled:opacity-60 text-xs font-medium"
             />
           </div>
 
@@ -188,7 +201,8 @@ export const GeofenceSettingsView: React.FC = () => {
                 step="0.0001"
                 value={lat}
                 onChange={(e) => setLat(parseFloat(e.target.value) || 0)}
-                className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold"
+                disabled={!isFullAccessUser}
+                className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 disabled:cursor-not-allowed disabled:opacity-60 text-xs font-mono font-bold"
               />
             </div>
             <div>
@@ -198,7 +212,8 @@ export const GeofenceSettingsView: React.FC = () => {
                 step="0.0001"
                 value={lon}
                 onChange={(e) => setLon(parseFloat(e.target.value) || 0)}
-                className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold"
+                disabled={!isFullAccessUser}
+                className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 disabled:cursor-not-allowed disabled:opacity-60 text-xs font-mono font-bold"
               />
             </div>
           </div>
@@ -214,6 +229,7 @@ export const GeofenceSettingsView: React.FC = () => {
               max="2000"
               step="50"
               value={radius}
+              disabled={!isFullAccessUser}
               onChange={(e) => setRadius(parseInt(e.target.value))}
               className="w-full accent-blue-600 cursor-pointer"
             />
@@ -235,11 +251,22 @@ export const GeofenceSettingsView: React.FC = () => {
           <div className="pt-2">
             <button
               onClick={handleSaveCurrentZone}
-              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-2"
+              disabled={!isFullAccessUser}
+              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-2"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{t('save')}</span>
             </button>
+            {!activeZone?.isPrimary && (
+              <button
+                onClick={handleDeleteZone}
+                disabled={!isFullAccessUser}
+                className="mt-2 w-full py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-xs transition flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete this office zone
+              </button>
+            )}
           </div>
         </div>
       </div>

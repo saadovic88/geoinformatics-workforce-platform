@@ -21,6 +21,7 @@ import {
   Send,
   Sparkles,
   BarChart2,
+  Trash2,
 } from 'lucide-react';
 import { TaskPerformanceInsights } from './TaskPerformanceInsights';
 
@@ -39,6 +40,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const {
     tasks,
     createTask,
+    deleteTask,
     updateTaskStatus,
     toggleSubtask,
     addTaskComment,
@@ -214,13 +216,13 @@ export const TasksView: React.FC<TasksViewProps> = ({
             </button>
           </div>
 
-          <button
+          {isFullAccessUser && <button
             onClick={() => setShowNewModal(true)}
             className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('createTask')}</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -500,6 +502,16 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {isFullAccessUser && <button
+                    onClick={() => {
+                      if (!window.confirm(`Delete task "${selectedTask.title}"? This action cannot be undone.`)) return;
+                      deleteTask(selectedTask.id);
+                      setSelectedTask(null);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold transition flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>}
                   {selectedTask.assigneeIds.includes(currentUser.id) && selectedTask.status !== 'submitted' && selectedTask.status !== 'completed' && (
                     <button
                       onClick={() => {

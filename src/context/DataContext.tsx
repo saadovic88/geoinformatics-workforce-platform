@@ -41,10 +41,15 @@ interface DataContextType {
   geofenceZones: GeofenceZone[];
   updateGeofenceZone: (zone: GeofenceZone) => void;
   addGeofenceZone: (zone: Omit<GeofenceZone, 'id'>) => void;
+  deleteGeofenceZone: (zoneId: string) => boolean;
   workSchedules: WorkSchedule[];
   updateWorkSchedule: (schedule: WorkSchedule) => void;
+  addWorkSchedule: (schedule: Omit<WorkSchedule, 'id'>) => void;
+  deleteWorkSchedule: (scheduleId: string) => boolean;
   holidays: Holiday[];
   addHoliday: (holiday: Omit<Holiday, 'id'>) => void;
+  updateHoliday: (holiday: Holiday) => void;
+  deleteHoliday: (holidayId: string) => void;
   // Leaves & Dual Approval
   leaveRequests: LeaveRequest[];
   leaveBalances: LeaveBalance[];
@@ -55,6 +60,7 @@ interface DataContextType {
   tasks: Task[];
   createTask: (task: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => void;
   updateTask: (task: Task) => void;
+  deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   toggleSubtask: (taskId: string, subtaskId: string) => void;
   addTaskComment: (taskId: string, content: string) => void;
@@ -244,6 +250,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem('geo_zones_data', JSON.stringify(geofenceZones));
   }, [geofenceZones]);
+
+  useEffect(() => {
+    localStorage.setItem('geo_schedules_data', JSON.stringify(workSchedules));
+  }, [workSchedules]);
+
+  useEffect(() => {
+    localStorage.setItem('geo_holidays_data', JSON.stringify(holidays));
+  }, [holidays]);
 
   useEffect(() => {
     localStorage.setItem('geo_leave_requests_data', JSON.stringify(leaveRequests));
@@ -722,6 +736,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Tasks Management
   const createTask = (taskData: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => {
+    if (!isFullAccessUser) return;
     const newTask: Task = {
       ...taskData,
       id: `tsk_${Date.now()}`,
@@ -756,8 +771,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateTask = (updatedTask: Task) => {
+    if (!isFullAccessUser) return;
     setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     logAction('TASK_UPDATED', 'Tasks', `Updated task "${updatedTask.title}"`);
+  };
+
+  const deleteTask = (taskId: string) => {
+    if (!isFullAccessUser) return;
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    setTasks((prev) => prev.filter((item) => item.id !== taskId));
+    logAction('TASK_DELETED', 'Tasks', `Deleted task "${task.title}"`);
   };
 
   const updateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
@@ -887,11 +911,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Geofence & Schedules
   const updateGeofenceZone = (zone: GeofenceZone) => {
+    if (!isFullAccessUser) return;
     setGeofenceZones((prev) => prev.map((z) => (z.id === zone.id ? zone : z)));
     logAction('GEOFENCE_ZONE_UPDATED', 'Settings', `Updated geofence zone ${zone.nameEn}`);
   };
 
   const addGeofenceZone = (zoneData: Omit<GeofenceZone, 'id'>) => {
+    if (!isFullAccessUser) return;
     const newZone: GeofenceZone = {
       ...zoneData,
       id: `zone_${Date.now()}`,
@@ -900,18 +926,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('GEOFENCE_ZONE_ADDED', 'Settings', `Added geofence zone ${zoneData.nameEn}`);
   };
 
+  const deleteGeofenceZone = (zoneId: string) => {
+    if (!isFullAccessUser || geofenceZones.length <= 1) return false;
+    const zone = geofenceZones.find((item) => item.id === zoneId);
+    if (!zone || zone.isPrimary) return false;
+    setGeofenceZones((prev) => prev.filter((item) => item.id !== zoneId));
+    logAction('GEOFENCE_ZONE_DELETED', 'Settings', `Deleted geofence zone ${zone.nameEn}`);
+    return true;
+  };
+
   const updateWorkSchedule = (schedule: WorkSchedule) => {
+    if (!isFullAccessUser) return;
     setWorkSchedules((prev) => prev.map((s) => (s.id === schedule.id ? schedule : s)));
     logAction('SCHEDULE_UPDATED', 'Settings', `Updated work schedule ${schedule.nameEn}`);
   };
 
+  const addWorkSchedule = (scheduleData: Omit<WorkSchedule, 'id'>) => {
+    if (!isFullAccessUser) return;
+    const schedule: WorkSchedule = { ...scheduleData, id: `sched_${Date.now()}` };
+    setWorkSchedules((prev) => [...prev, schedule]);
+    logAction('SCHEDULE_ADDED', 'Settings', `Added work schedule ${schedule.nameEn}`);
+  };
+
+  const deleteWorkSchedule = (scheduleId: string) => {
+    if (!isFullAccessUser || workSchedules.length <= 1) return false;
+    const schedule = workSchedules.find((item) => item.id === scheduleId);
+    if (!schedule || users.some((user) => user.workScheduleId === scheduleId)) return false;
+    setWorkSchedules((prev) => prev.filter((item) => item.id !== scheduleId));
+    logAction('SCHEDULE_DELETED', 'Settings', `Deleted work schedule ${schedule.nameEn}`);
+    return true;
+  };
+
   const addHoliday = (holidayData: Omit<Holiday, 'id'>) => {
+    if (!isFullAccessUser) return;
     const newHol: Holiday = {
       ...holidayData,
       id: `hol_${Date.now()}`,
     };
     setHolidays((prev) => [...prev, newHol]);
     logAction('HOLIDAY_ADDED', 'Settings', `Added company holiday ${holidayData.nameEn}`);
+  };
+
+  const updateHoliday = (holiday: Holiday) => {
+    if (!isFullAccessUser) return;
+    setHolidays((prev) => prev.map((item) => (item.id === holiday.id ? holiday : item)));
+    logAction('HOLIDAY_UPDATED', 'Settings', `Updated company holiday ${holiday.nameEn}`);
+  };
+
+  const deleteHoliday = (holidayId: string) => {
+    if (!isFullAccessUser) return;
+    const holiday = holidays.find((item) => item.id === holidayId);
+    if (!holiday) return;
+    setHolidays((prev) => prev.filter((item) => item.id !== holidayId));
+    logAction('HOLIDAY_DELETED', 'Settings', `Deleted company holiday ${holiday.nameEn}`);
   };
 
   // Notifications
@@ -978,10 +1045,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         geofenceZones,
         updateGeofenceZone,
         addGeofenceZone,
+        deleteGeofenceZone,
         workSchedules,
         updateWorkSchedule,
+        addWorkSchedule,
+        deleteWorkSchedule,
         holidays,
         addHoliday,
+        updateHoliday,
+        deleteHoliday,
         leaveRequests,
         leaveBalances,
         createLeaveRequest,
@@ -990,6 +1062,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tasks,
         createTask,
         updateTask,
+        deleteTask,
         updateTaskStatus,
         toggleSubtask,
         addTaskComment,
