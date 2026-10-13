@@ -53,7 +53,7 @@ const MainAppContent: React.FC = () => {
     />
   );
 
-  const canOpenDepartmentApproval = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager'].includes(currentUser.roleId);
+  const canOpenDepartmentApproval = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
 
   const renderActiveView = () => {
     switch (activePage) {

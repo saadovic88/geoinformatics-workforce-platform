@@ -163,6 +163,8 @@ export interface LeaveRequest {
   attachmentName?: string;
   handoverNotes?: string;
   contactWhileAway?: string;
+  /** Colleague assigned to cover the requester's work during the absence. */
+  proxyEmployeeId?: string;
   status: LeaveStatus;
   createdAt: string;
   // Dual approval steps

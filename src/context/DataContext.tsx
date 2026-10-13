@@ -28,7 +28,7 @@ import {
   INITIAL_USERS,
 } from '../data/seedData';
 import { evaluateGeofence, calculateHaversineDistanceMeters } from '../utils/geoUtils';
-import { canSubmitOwnLeave, getLeaveApprover } from '../utils/leavePolicy';
+import { canSubmitOwnLeave, getLeaveApprovers } from '../utils/leavePolicy';
 import { useAuth } from './AuthContext';
 
 interface DataContextType {
@@ -233,8 +233,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // were seeded under the old dual-signature workflow and are not valid
       // under the department-owned policy.
       if (!canSubmitOwnLeave(requester)) return [];
-      const approver = getLeaveApprover(requester, users);
-      if (!approver) return [];
+      const approvers = getLeaveApprovers(requester, users);
+      if (!approvers.length) return [];
       const normalizedStepStatus = request.status === 'approved'
         ? 'approved' as const
         : request.status === 'rejected'
@@ -243,7 +243,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [{
         ...request,
         employeeId,
-        approvalSteps: [{ approverId: approver.id, approverName: approver.nameEn, status: normalizedStepStatus }],
+        approvalSteps: approvers.map((approver) => ({
+          approverId: approver.id,
+          approverName: approver.nameEn,
+          status: normalizedStepStatus,
+        })),
       }];
     }));
     setTasks((prev) => prev.map((task) => ({
@@ -543,15 +547,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser || req.employeeId !== currentUser.id || !canSubmitOwnLeave(currentUser)) return;
     const requesterId = req.employeeId;
     const requester = users.find((user) => user.id === requesterId);
-    const approver = getLeaveApprover(requester, users);
-    if (!requester || !approver) return;
+    const approvers = getLeaveApprovers(requester, users);
+    if (!requester || !approvers.length || !req.proxyEmployeeId || req.proxyEmployeeId === requesterId) return;
 
     const newRequest: LeaveRequest = {
       ...req,
       id: `lr_${Date.now()}`,
       createdAt: new Date().toISOString(),
       status: 'pending_approval',
-      approvalSteps: [{ approverId: approver.id, approverName: approver.nameEn, status: 'pending' }],
+      approvalSteps: approvers.map((approver) => ({ approverId: approver.id, approverName: approver.nameEn, status: 'pending' })),
     };
 
     setLeaveRequests((prev) => [newRequest, ...prev]);
@@ -569,8 +573,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    // Only the accountable department owner receives an actionable alert.
-    addNotification({
+    // Every required signer receives a direct, actionable alert.
+    approvers.forEach((approver) => addNotification({
       userId: approver.id,
       titleEn: 'Leave Request Awaiting Your Approval',
       titleAr: 'طلب إجازة جديد بانتظار اعتمادكم',
@@ -579,7 +583,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       type: 'leave',
       priority: 'high',
       actionUrl: `leave:${newRequest.id}`,
-    });
+    }));
+
+    const proxy = users.find((user) => user.id === req.proxyEmployeeId);
+    if (proxy) {
+      addNotification({
+        userId: proxy.id,
+        titleEn: 'Leave Cover Assignment',
+        titleAr: 'تكليف بتغطية مهام زميل',
+        messageEn: `${requester.nameEn} nominated you to cover assigned work during ${req.startDate} to ${req.endDate}. This is an assignment notice; no response is required.`,
+        messageAr: `تم تكليفك بتغطية مهام ${requester.nameAr} خلال الفترة من ${req.startDate} إلى ${req.endDate}. هذا إشعار تكليف ولا يتطلب منك قبولاً أو رفضاً.`,
+        type: 'leave',
+        priority: 'high',
+        actionUrl: 'tasks_my',
+      });
+    }
 
     logAction('LEAVE_REQUESTED', 'Leaves', `Request for ${req.durationUnits} ${req.unit} of ${req.leaveType} created`);
   };
@@ -595,8 +613,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // An approver may act only as themselves, and only on the one step routed
     // to them. Full platform access does not bypass leave ownership.
     if (!currentUser || currentUser.id !== approverId) return;
-    if (!target.approvalSteps.some((step) => step.approverId === approverId && step.status === 'pending')) return;
+    if (!target.approvalSteps.some((step) => step.approverId === approverId)) return;
 
+    // A signatory may reverse a prior rejection (or an approval). The request
+    // status is recomputed from every individual decision, not treated as an
+    // irreversible one-way state.
+    const updatedSteps = target.approvalSteps.map((step) =>
+      step.approverId === approverId
+        ? { ...step, status: decision, actionDate: new Date().toISOString(), notes }
+        : step
+    );
+    const nextStatus = updatedSteps.every((step) => step.status === 'approved')
+      ? 'approved'
+      : updatedSteps.some((step) => step.status === 'rejected')
+      ? 'rejected'
+      : updatedSteps.some((step) => step.status === 'approved')
+      ? 'partially_approved'
+      : 'pending_approval';
+    const wasApproved = target.status === 'approved';
+    const isApproved = nextStatus === 'approved';
+
+    setLeaveRequests((prev) => prev.map((request) =>
+      request.id === requestId ? { ...request, status: nextStatus, approvalSteps: updatedSteps } : request
+    ));
+
+    if (wasApproved !== isApproved || (target.status !== 'rejected' && nextStatus === 'rejected') || (target.status === 'rejected' && nextStatus !== 'rejected')) {
+      setLeaveBalances((prev) => prev.map((balance) => {
+        if (balance.employeeId !== target.employeeId || balance.leaveType !== target.leaveType) return balance;
+        if (!wasApproved && isApproved) return { ...balance, pending: Math.max(0, balance.pending - target.durationUnits), used: balance.used + target.durationUnits, remaining: Math.max(0, balance.remaining - target.durationUnits) };
+        if (wasApproved && !isApproved) return { ...balance, used: Math.max(0, balance.used - target.durationUnits), remaining: balance.remaining + target.durationUnits, pending: nextStatus === 'rejected' ? balance.pending : balance.pending + target.durationUnits };
+        if (target.status !== 'rejected' && nextStatus === 'rejected') return { ...balance, pending: Math.max(0, balance.pending - target.durationUnits) };
+        if (target.status === 'rejected' && nextStatus !== 'rejected') return { ...balance, pending: balance.pending + target.durationUnits };
+        return balance;
+      }));
+    }
+
+    addNotification({
+      userId: target.employeeId,
+      titleEn: isApproved ? 'Leave Request Fully Approved' : nextStatus === 'rejected' ? 'Leave Request Rejected' : 'Leave Approval Updated',
+      titleAr: isApproved ? 'تم اعتماد طلب الإجازة نهائياً' : nextStatus === 'rejected' ? 'تم رفض طلب الإجازة' : 'تم تحديث قرار اعتماد الإجازة',
+      messageEn: `${currentUser.nameEn} changed their decision to ${decision}. Current request status: ${nextStatus}.`,
+      messageAr: `قام ${currentUser.nameAr} بتحديث قراره إلى ${decision}. الحالة الحالية للطلب: ${nextStatus}.`,
+      type: 'leave', priority: 'high', actionUrl: `leave:${requestId}`,
+    });
+    logAction('LEAVE_APPROVAL_UPDATED', 'Leaves', `Request ${requestId}: ${approverId} changed decision to ${decision}; status ${nextStatus}`);
+    return;
+
+    /* Legacy single-step implementation retained in history:
     if (decision === 'rejected') {
       // Immediate rejection of the entire request
       const updatedSteps = target.approvalSteps.map((step) =>
@@ -729,6 +792,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       logAction('LEAVE_PARTIALLY_APPROVED', 'Leaves', `Request ${requestId} signed by ${approverId}`);
     }
+    */
   };
 
   const cancelLeaveRequest = (requestId: string) => {

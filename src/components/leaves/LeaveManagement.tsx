@@ -46,6 +46,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const [reason, setReason] = useState('');
   const [handoverNotes, setHandoverNotes] = useState('');
   const [contactWhileAway, setContactWhileAway] = useState('');
+  const [proxyEmployeeId, setProxyEmployeeId] = useState('');
   // Field site specifics
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -75,7 +76,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
 
   const handleSubmitLeave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canRequestLeave || !reason.trim()) return;
+    if (!canRequestLeave || !reason.trim() || !proxyEmployeeId) return;
 
     createLeaveRequest({
       employeeId: currentUser.id,
@@ -87,6 +88,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
       reason,
       handoverNotes,
       contactWhileAway,
+      proxyEmployeeId,
       externalSiteDetails:
         leaveType === 'external_site'
           ? {
@@ -101,14 +103,15 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
     setReason('');
     setHandoverNotes('');
     setContactWhileAway('');
+    setProxyEmployeeId('');
   };
 
-  // Pending for dual approval
+  // Every routed decision remains available to its owner for amendment.
   const pendingDual = visibleLeaveRequests.filter(
-    (r) => r.status === 'pending_approval' || r.status === 'partially_approved'
+    (r) => r.status !== 'cancelled' && r.approvalSteps.some((step) => step.approverId === currentUser.id)
   );
   const pendingForReview = pendingDual.filter((request) =>
-    request.approvalSteps.some((step) => step.approverId === currentUser.id && step.status === 'pending')
+    request.approvalSteps.some((step) => step.approverId === currentUser.id)
   );
 
   return (
@@ -360,7 +363,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 // Permission rule: user cannot approve their own request!
                 const isRequester = currentUser.id === req.employeeId;
 
-                const currentApprovalStep = req.approvalSteps.find((step) => step.status === 'pending' && step.approverId === currentUser.id);
+                const currentApprovalStep = req.approvalSteps.find((step) => step.approverId === currentUser.id);
 
                 const notes = approvalNotes[req.id] || '';
 
@@ -673,6 +676,28 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   placeholder="Task handover details during absence..."
                   className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"
                 />
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-2">
+                <label className="font-bold text-amber-900 block">
+                  {isRtl ? 'زميل تغطية المهام أثناء الغياب *' : 'Mandatory task-cover colleague *'}
+                </label>
+                <select
+                  required
+                  value={proxyEmployeeId}
+                  onChange={(event) => setProxyEmployeeId(event.target.value)}
+                  className="w-full rounded-lg border border-amber-200 bg-white p-2 text-xs text-slate-800"
+                >
+                  <option value="">{isRtl ? 'اختر الزميل المسؤول عن تغطية المهام' : 'Select the colleague covering your work'}</option>
+                  {users.filter((user) => user.id !== currentUser.id && user.status === 'active').map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {isRtl ? user.nameAr : user.nameEn} — {isRtl ? user.jobTitleAr : user.jobTitleEn}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] leading-relaxed text-amber-800">
+                  {isRtl ? 'سيصل للزميل إشعار تكليف تلقائي لتغطية مهامك. لا يتطلب هذا التكليف قبولاً أو رفضاً منه.' : 'The selected colleague receives an automatic work-cover notification. This assignment does not require their acceptance or refusal.'}
+                </p>
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600">

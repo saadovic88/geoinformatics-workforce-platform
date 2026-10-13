@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const canViewTeamOperations = isFullAccessUser;
   // Leave authority is department-specific; platform-wide access must not make
   // a leader an approver for every employee.
-  const canApproveLeave = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager'].includes(currentUser.roleId);
+  const canApproveLeave = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
   const canViewPeopleDirectory = isPlatformAdmin;
   const canManageSettings = isPlatformAdmin;
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});

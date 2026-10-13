@@ -12,10 +12,10 @@ const READ_ONLY_OBSERVER_EMAILS = new Set([
   'dr.ghada@geoinformatics.com',
 ]);
 
-const DEPARTMENT_OWNER_ROLE: Partial<Record<DepartmentId, User['roleId']>> = {
+const DEPARTMENT_HEAD_ROLE: Partial<Record<DepartmentId, User['roleId']>> = {
   administrative: 'admin_manager',
   technical: 'tech_manager',
-  training: 'tech_manager',
+  training: 'training_manager',
   gis: 'gis_manager',
   remote_sensing: 'rs_manager',
 };
@@ -30,17 +30,22 @@ export const canSubmitOwnLeave = (user: User | undefined) =>
   !!user && !isLeaveExempt(user) && !isLeaveObserver(user);
 
 /**
- * Returns the single accountable department approver. A department lead's
- * personal request is escalated to the CEO as a narrow leadership exception;
- * routine employee requests never reach the CEO.
+ * Every request needs the three company approvers (CEO, administration and
+ * technical managers) plus its department head where that person is distinct.
+ * Repeated people are de-duplicated for Administrative/Technical requests.
  */
-export const getLeaveApprover = (requester: User | undefined, users: User[]): User | undefined => {
-  if (!requester || !canSubmitOwnLeave(requester)) return undefined;
+export const getLeaveApprovers = (requester: User | undefined, users: User[]): User[] => {
+  if (!requester || !canSubmitOwnLeave(requester)) return [];
 
-  const ownerRole = DEPARTMENT_OWNER_ROLE[requester.departmentId];
-  const departmentOwner = ownerRole ? users.find((user) => user.roleId === ownerRole) : undefined;
-  if (departmentOwner && departmentOwner.id !== requester.id) return departmentOwner;
+  const companyApprovers = ['ceo', 'admin_manager', 'tech_manager'] as const;
+  const departmentHeadRole = DEPARTMENT_HEAD_ROLE[requester.departmentId];
+  const roleSequence = departmentHeadRole
+    ? [...companyApprovers, departmentHeadRole]
+    : [...companyApprovers];
 
-  return users.find((user) => user.roleId === 'ceo' && user.id !== requester.id);
+  return roleSequence
+    .map((role) => users.find((user) => user.roleId === role))
+    .filter((user): user is User => !!user && user.id !== requester.id)
+    .filter((user, index, list) => list.findIndex((candidate) => candidate.id === user.id) === index);
 };
 
