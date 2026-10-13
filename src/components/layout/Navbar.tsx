@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -43,6 +43,29 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
 
   const isCheckedIn = !!todayAttendance;
   const isCheckedOut = !!todayAttendance?.checkOutTime;
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+
+  // The start time lives in the attendance record (and therefore in local
+  // storage). Rebuilding the elapsed time from that timestamp means closing
+  // the browser, a power cut, or a refresh never pauses the work clock.
+  useEffect(() => {
+    if (!isCheckedIn || isCheckedOut) return undefined;
+    setTimerNow(Date.now());
+    const interval = window.setInterval(() => setTimerNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [isCheckedIn, isCheckedOut, todayAttendance?.checkInTime, todayAttendance?.date]);
+
+  const elapsedWorkTime = useMemo(() => {
+    if (!todayAttendance || isCheckedOut) return null;
+    const [year, month, day] = todayAttendance.date.split('-').map(Number);
+    const [hour, minute, second = 0] = todayAttendance.checkInTime.split(':').map(Number);
+    const startedAt = new Date(year, month - 1, day, hour, minute, second).getTime();
+    const elapsedSeconds = Math.max(0, Math.floor((timerNow - startedAt) / 1000));
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, [todayAttendance, isCheckedOut, timerNow]);
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ar' : 'en');
@@ -75,6 +98,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
               </span>
               <span className="font-medium">
                 {t('checkedInAt')} {todayAttendance.checkInTime}
+              </span>
+              <span className="font-mono font-bold tabular-nums text-emerald-900" title={isRtl ? 'مدة العمل المستمرة' : 'Live work duration'}>
+                {elapsedWorkTime}
               </span>
               <span className="text-emerald-400">|</span>
               <button

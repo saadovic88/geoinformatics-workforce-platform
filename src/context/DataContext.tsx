@@ -303,8 +303,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications((prev) => [newItem, ...prev]);
   };
 
-  // Find today's attendance for current user
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Use the company's local calendar day. UTC dates can otherwise create a
+  // second attendance session around midnight in Cairo.
+  const todayStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
   const todayAttendance = attendanceRecords.find(
     (r) => r.employeeId === currentUser?.id && r.date === todayStr
   );
@@ -327,6 +333,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     forceStatus?: AttendanceStatus,
     notes?: string
   ): Promise<AttendanceRecord> => {
+    // One attendance clock is allowed per employee per workday. Re-clicking a
+    // check-in control must never reset a running clock or reopen a completed
+    // workday.
+    const existing = attendanceRecords.find(
+      (record) => record.employeeId === currentUser?.id && record.date === todayStr
+    );
+    if (existing) return existing;
+
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0]; // HH:mm:ss
     const hours = now.getHours();
@@ -414,7 +428,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       reviewStatus: status === 'outside_review' ? 'pending' : undefined,
     };
 
-    setAttendanceRecords((prev) => [newRecord, ...prev.filter((r) => !(r.employeeId === currentUser?.id && r.date === todayStr))]);
+    // Persist synchronously as well as through the normal state effect. This
+    // protects an automatic check-in if the browser/device is closed straight
+    // after opening the platform.
+    const nextRecords = [
+      newRecord,
+      ...attendanceRecords.filter((r) => !(r.employeeId === currentUser?.id && r.date === todayStr)),
+    ];
+    setAttendanceRecords(nextRecords);
+    localStorage.setItem('geo_attendance_data', JSON.stringify(nextRecords));
 
     logAction('CHECK_IN', 'Attendance', `${currentUser?.nameEn} checked in. Status: ${status}, Distance: ${geofenceResult.distanceMeters}m`);
     return newRecord;
@@ -466,7 +488,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       earlyLeaveMinutes,
     };
 
-    setAttendanceRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    const nextRecords = attendanceRecords.map((r) => (r.id === updated.id ? updated : r));
+    setAttendanceRecords(nextRecords);
+    localStorage.setItem('geo_attendance_data', JSON.stringify(nextRecords));
 
     logAction(
       'CHECK_OUT',
