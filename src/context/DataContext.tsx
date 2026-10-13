@@ -28,6 +28,7 @@ import {
   INITIAL_USERS,
 } from '../data/seedData';
 import { evaluateGeofence, calculateHaversineDistanceMeters } from '../utils/geoUtils';
+import { canSubmitOwnLeave, getLeaveApprover } from '../utils/leavePolicy';
 import { useAuth } from './AuthContext';
 
 interface DataContextType {
@@ -225,7 +226,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     didRemapEmployeeIds.current = true;
     setAttendanceRecords((prev) => prev.map((record) => ({ ...record, employeeId: mapLegacyId(record.employeeId), reviewedBy: record.reviewedBy ? mapLegacyId(record.reviewedBy) : undefined })));
     setLeaveBalances((prev) => prev.map((balance) => ({ ...balance, employeeId: mapLegacyId(balance.employeeId) })));
-    setLeaveRequests((prev) => prev.map((request) => ({ ...request, employeeId: mapLegacyId(request.employeeId), approvalSteps: request.approvalSteps.map((step) => ({ ...step, approverId: mapLegacyId(step.approverId) })) })));
+    setLeaveRequests((prev) => prev.flatMap((request) => {
+      const employeeId = mapLegacyId(request.employeeId);
+      const requester = users.find((user) => user.id === employeeId);
+      // Remove legacy requests for leave-exempt leaders and observers. They
+      // were seeded under the old dual-signature workflow and are not valid
+      // under the department-owned policy.
+      if (!canSubmitOwnLeave(requester)) return [];
+      const approver = getLeaveApprover(requester, users);
+      if (!approver) return [];
+      const normalizedStepStatus = request.status === 'approved'
+        ? 'approved' as const
+        : request.status === 'rejected'
+        ? 'rejected' as const
+        : 'pending' as const;
+      return [{
+        ...request,
+        employeeId,
+        approvalSteps: [{ approverId: approver.id, approverName: approver.nameEn, status: normalizedStepStatus }],
+      }];
+    }));
     setTasks((prev) => prev.map((task) => ({
       ...task,
       creatorId: mapLegacyId(task.creatorId),
@@ -517,32 +537,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('ATTENDANCE_EXCEPTION_RESOLVED', 'Attendance', `Record ${recordId} was ${decision} by ${currentUser?.nameEn}`);
   };
 
-  // Leave & Dual Approval Workflow
+  // Leave workflow: every request has exactly one accountable department owner.
+  // There is deliberately no company-wide approval override in this workflow.
   const createLeaveRequest = (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => {
+    if (!currentUser || req.employeeId !== currentUser.id || !canSubmitOwnLeave(currentUser)) return;
     const requesterId = req.employeeId;
-
     const requester = users.find((user) => user.id === requesterId);
-    // Always resolve live profile IDs first. Hard-coded seed IDs must never be
-    // used when Supabase has supplied UUID profile IDs, otherwise the actual
-    // manager would not receive the notification or be able to sign.
-    const resolveApprover = (roleId: string, fallbackId: string, fallbackName: string) => {
-      const profile = users.find((user) => user.roleId === roleId);
-      return profile ? { id: profile.id, name: profile.nameEn } : { id: fallbackId, name: fallbackName };
-    };
-    const approvers = [
-      ...(requester?.departmentId === 'gis' ? [resolveApprover('gis_manager', 'emp_barghouth', 'Eng. Saad Barghouth (GIS)')] : []),
-      ...(requester?.departmentId === 'remote_sensing' ? [resolveApprover('rs_manager', 'emp_sherif', 'Eng. Sherif Younes (Remote Sensing)')] : []),
-      resolveApprover('ceo', 'emp_badawy', 'Dr. Mohamed Badawy'),
-      resolveApprover('admin_manager', 'emp_soghayar', 'Amr El Soghayar'),
-      resolveApprover('tech_manager', 'emp_salama', 'Eng. Badr El Din Salama'),
-    ].filter((approver, index, list) => approver.id !== requesterId && list.findIndex((item) => item.id === approver.id) === index);
+    const approver = getLeaveApprover(requester, users);
+    if (!requester || !approver) return;
 
     const newRequest: LeaveRequest = {
       ...req,
       id: `lr_${Date.now()}`,
       createdAt: new Date().toISOString(),
       status: 'pending_approval',
-      approvalSteps: approvers.map((approver) => ({ approverId: approver.id, approverName: approver.name, status: 'pending' })),
+      approvalSteps: [{ approverId: approver.id, approverName: approver.nameEn, status: 'pending' }],
     };
 
     setLeaveRequests((prev) => [newRequest, ...prev]);
@@ -560,9 +569,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    // Every required signer receives a direct, actionable notification. This
-    // includes Saad for GIS and Sherif for Remote Sensing requests.
-    approvers.forEach((approver) => addNotification({
+    // Only the accountable department owner receives an actionable alert.
+    addNotification({
       userId: approver.id,
       titleEn: 'Leave Request Awaiting Your Approval',
       titleAr: 'طلب إجازة جديد بانتظار اعتمادكم',
@@ -571,7 +579,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       type: 'leave',
       priority: 'high',
       actionUrl: `leave:${newRequest.id}`,
-    }));
+    });
 
     logAction('LEAVE_REQUESTED', 'Leaves', `Request for ${req.durationUnits} ${req.unit} of ${req.leaveType} created`);
   };
@@ -584,7 +592,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     const target = leaveRequests.find((r) => r.id === requestId);
     if (!target) return;
-    if (!isFullAccessUser && currentUser.id !== approverId) return;
+    // An approver may act only as themselves, and only on the one step routed
+    // to them. Full platform access does not bypass leave ownership.
+    if (!currentUser || currentUser.id !== approverId) return;
     if (!target.approvalSteps.some((step) => step.approverId === approverId && step.status === 'pending')) return;
 
     if (decision === 'rejected') {
@@ -723,7 +733,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cancelLeaveRequest = (requestId: string) => {
     const target = leaveRequests.find((r) => r.id === requestId);
-    if (!target) return;
+    if (!target || !currentUser || target.employeeId !== currentUser.id) return;
 
     if (target.status === 'approved') {
       // Restore balance

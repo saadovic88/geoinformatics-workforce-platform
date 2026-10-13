@@ -79,7 +79,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isPlatformAdmin = isFullAccessUser;
   const canViewTeamOperations = isFullAccessUser;
-  const canApproveLeave = isFullAccessUser || ['gis_manager', 'rs_manager'].includes(currentUser.roleId);
+  // Leave authority is department-specific; platform-wide access must not make
+  // a leader an approver for every employee.
+  const canApproveLeave = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager'].includes(currentUser.roleId);
   const canViewPeopleDirectory = isPlatformAdmin;
   const canManageSettings = isPlatformAdmin;
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -121,12 +123,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      titleEn: 'Leaves & Dual Sign-off',
+      titleEn: 'Leaves & Permissions',
       titleAr: 'الإجازات والاعتماد الثنائي',
       items: [
         { id: 'leaves_requests' as ActivePage, label: t('navLeaveRequests'), icon: FileText, show: true },
         { id: 'leaves_balances' as ActivePage, label: t('navLeaveBalances'), icon: Wallet, show: true },
-        { id: 'leaves_dual_approval' as ActivePage, label: t('navDualApproval'), icon: ShieldCheck, show: canApproveLeave },
+        { id: 'leaves_dual_approval' as ActivePage, label: isRtl ? 'مركز اعتماد القسم' : 'Department Approval Center', icon: ShieldCheck, show: canApproveLeave },
         { id: 'leaves_wfh_field' as ActivePage, label: t('navWfhField'), icon: Send, show: currentUser.roleId !== 'gis_specialist' && currentUser.roleId !== 'rs_specialist' },
       ],
     },

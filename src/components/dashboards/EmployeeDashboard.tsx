@@ -17,6 +17,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { LeafletMap } from '../common/LeafletMap';
+import { canSubmitOwnLeave } from '../../utils/leavePolicy';
 
 interface EmployeeDashboardProps {
   onNavigate: (page: any) => void;
@@ -31,7 +32,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   onRequestLeave,
   onCreateTask,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, hasPermission } = useAuth();
   const { todayAttendance, checkIn, geofenceZones, tasks, leaveBalances, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -64,6 +65,8 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
 
   const isCheckedIn = !!todayAttendance;
   const isCheckedOut = !!todayAttendance?.checkOutTime;
+  const canRequestLeave = canSubmitOwnLeave(currentUser);
+  const canCreateTask = hasPermission('tasks', 'create');
 
   return (
     <div className="space-y-6">
@@ -90,20 +93,20 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
 
         {/* Quick action buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
+          {canRequestLeave && <button
             onClick={onRequestLeave}
             className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-xs border border-white/20 transition flex items-center gap-2 shadow-xs"
           >
             <Send className="w-3.5 h-3.5" />
             <span>{t('requestLeaveBtn')}</span>
-          </button>
-          <button
+          </button>}
+          {canCreateTask && <button
             onClick={onCreateTask}
             className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center gap-2 shadow-md shadow-blue-900/30"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('createTask')}</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -420,7 +423,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
           </div>
         </div>
 
-        {/* Dual Approval Leave Notice Card */}
+        {/* Department-owned leave policy */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -429,35 +432,35 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
 
           <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-2">
             <p className="font-bold">
-              {isRtl ? 'سياسة الاعتماد الإلزامية:' : 'Mandatory Dual Signatory Rule:'}
+              {isRtl ? 'سياسة الاعتماد حسب القسم:' : 'Department-owned approval:'}
             </p>
             <p className="text-[11px] leading-relaxed text-blue-800">
               {isRtl
-                ? 'كافة الإجازات وأذونات العمل تتطلب توقيع كلاً من م. محمد عمر و د. غادة مجتمعين. الرفض من أي طرف يلغي الطلب فوراً دون خصم رصيد.'
-                : 'All leaves require approval from BOTH Eng. Mohamed Omar and Dr. Ghada. Either signature denial causes immediate rejection with zero balance deduction.'}
+                ? 'كل طلب يُرسل لمسؤول القسم فقط. محمد عمر ود. غادة حسابات مراقبة ولا يملكان أي صلاحية اعتماد.'
+                : 'Each request goes to one accountable department owner only. Mohamed Omar and Dr. Ghada are monitoring-only and cannot approve requests.'}
             </p>
           </div>
 
           <div className="space-y-2.5 text-xs">
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-              <span className="font-medium text-slate-700">1. {t('approverOmar')}</span>
+              <span className="font-medium text-slate-700">{isRtl ? 'الإدارة: عمرو الصغير' : 'Administration: Amr El Soghayar'}</span>
               <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                {isRtl ? 'المعتمد الأول' : 'Approver 1'}
+                {isRtl ? 'مسؤول القسم' : 'Department owner'}
               </span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-              <span className="font-medium text-slate-700">2. {t('approverGhada')}</span>
+              <span className="font-medium text-slate-700">{isRtl ? 'التقنية/التدريب: بدر • GIS: سعد • الاستشعار: شريف' : 'Technical/training: Badr • GIS: Saad • Remote sensing: Sherif'}</span>
               <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                {isRtl ? 'المعتمد الثاني' : 'Approver 2'}
+                {isRtl ? 'توجيه تلقائي' : 'Automatic routing'}
               </span>
             </div>
           </div>
 
           <button
-            onClick={() => onNavigate('leaves_dual_approval')}
+            onClick={() => onNavigate('leaves_requests')}
             className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition"
           >
-            {isRtl ? 'عرض مركز الاعتماد الثنائي' : 'Open Dual Approval Center'}
+            {isRtl ? 'فتح الإجازات والأذونات' : 'Open Leaves & Permissions'}
           </button>
         </div>
       </div>

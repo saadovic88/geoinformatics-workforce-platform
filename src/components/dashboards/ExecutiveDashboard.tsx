@@ -24,7 +24,7 @@ interface ExecutiveDashboardProps {
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNavigate }) => {
-  const { users } = useAuth();
+  const { users, currentUser } = useAuth();
   const { attendanceRecords, leaveRequests, tasks, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -43,8 +43,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
   // Overtime accumulated
   const totalOvertime = attendanceRecords.reduce((acc, r) => acc + (r.overtimeHours || 0), 0);
 
-  // Pending leaves for dual approval
-  const pendingLeaves = leaveRequests.filter((r) => r.status === 'pending_approval' || r.status === 'partially_approved');
+  // Even leaders with broad dashboard access see only leave requests directly
+  // assigned to them. Leave ownership never follows executive visibility.
+  const pendingLeaves = leaveRequests.filter((request) =>
+    (request.status === 'pending_approval' || request.status === 'partially_approved') &&
+    request.approvalSteps.some((step) => step.approverId === currentUser.id && step.status === 'pending')
+  );
 
   // Department statistics
   const departments = [
@@ -91,7 +95,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
           <p className="text-xs text-slate-500 max-w-2xl leading-relaxed">
             {isRtl
               ? 'متابعة شاملة للقوى العاملة، مؤشرات الأداء، الحضور عبر السياج الجغرافي، ومسار الاعتماد الثنائي.'
-              : 'Holistic workforce oversight: spatial geofence attendance, divisional KPIs, and dual executive approvals.'}
+              : 'Holistic workforce oversight: spatial geofence attendance, divisional KPIs, and department-owned leave approvals.'}
           </p>
         </div>
 
@@ -108,7 +112,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
             className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition flex items-center gap-2"
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>{t('navDualApproval')} ({pendingLeaves.length})</span>
+            <span>{isRtl ? 'اعتمادات قسمي' : 'My Department Approvals'} ({pendingLeaves.length})</span>
           </button>
         </div>
       </div>
@@ -256,14 +260,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
           </div>
         </div>
 
-        {/* Right Col: Dual Sign-off Approvals Queue */}
+        {/* Right Col: Department-owned approvals queue */}
         <div className="space-y-6">
           <div className="bg-white rounded-xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 <h2 className="font-bold text-slate-900 text-base tracking-tight">
-                  {isRtl ? 'طلبات الاعتماد الثنائي' : 'Dual Approval Queue'}
+                  {isRtl ? 'طلبات قسمي بانتظار الاعتماد' : 'My Department Approval Queue'}
                 </h2>
               </div>
               <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">
@@ -291,18 +295,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
                       </div>
                       <p className="text-slate-600 text-xs line-clamp-2 leading-relaxed">{lr.reason}</p>
 
-                      {/* Dual sign-off status */}
+                      {/* Assigned department approver */}
                       <div className="pt-2.5 border-t border-slate-200/80 flex items-center justify-between text-xs font-medium">
                         <span className="text-slate-600">
-                          {isRtl ? 'م. عمر: ' : 'Omar: '}
-                          <b className={lr.approvalSteps[0]?.status === 'approved' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                            {lr.approvalSteps[0]?.status === 'approved' ? (isRtl ? 'معتمد' : 'Approved') : (isRtl ? 'معلق' : 'Pending')}
-                          </b>
-                        </span>
-                        <span className="text-slate-600">
-                          {isRtl ? 'د. غادة: ' : 'Ghada: '}
-                          <b className={lr.approvalSteps[1]?.status === 'approved' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                            {lr.approvalSteps[1]?.status === 'approved' ? (isRtl ? 'معتمد' : 'Approved') : (isRtl ? 'معلق' : 'Pending')}
+                          {isRtl ? 'المسؤول: ' : 'Owner: '}
+                          <b className="text-amber-600 font-bold">
+                            {lr.approvalSteps.find((step) => step.approverId === currentUser.id)?.approverName || (isRtl ? 'مسؤول القسم' : 'Department owner')}
                           </b>
                         </span>
                       </div>
@@ -316,7 +314,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
               onClick={() => onNavigate('leaves_dual_approval')}
               className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm hover:shadow-md transition"
             >
-              {isRtl ? 'فتح مركز الاعتماد الثنائي والتوقيع' : 'Open Sign-off Center'}
+              {isRtl ? 'فتح مركز اعتماد القسم' : 'Open Department Approval Center'}
             </button>
           </div>
         </div>

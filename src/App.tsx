@@ -53,6 +53,8 @@ const MainAppContent: React.FC = () => {
     />
   );
 
+  const canOpenDepartmentApproval = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager'].includes(currentUser.roleId);
+
   const renderActiveView = () => {
     switch (activePage) {
       case 'dashboard':
@@ -99,7 +101,7 @@ const MainAppContent: React.FC = () => {
       case 'leaves_balances':
         return <LeaveManagement key={activePage} initialTab="balances" />;
       case 'leaves_dual_approval':
-        return <LeaveManagement key={activePage} initialTab="dual_approval" />;
+        return canOpenDepartmentApproval ? <LeaveManagement key={activePage} initialTab="dual_approval" /> : adminFallback();
       case 'leaves_wfh_field':
         return <LeaveManagement key={activePage} initialTab="wfh_field" />;
       case 'kpi_my':

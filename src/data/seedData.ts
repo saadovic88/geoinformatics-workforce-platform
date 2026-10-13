@@ -1085,14 +1085,17 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     reports: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
   },
   co_founder: {
-    dashboard: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
-    attendance: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
-    tasks: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
-    leaves: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
-    kpi: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
-    directory: { view: true, create: true, edit: true, delete: true, approve: true, export: true, manage: true },
-    settings: { view: true, create: true, edit: true, delete: false, approve: true, export: true, manage: true },
-    reports: { view: true, create: true, edit: true, delete: false, approve: true, export: true, manage: true },
+    // Mohamed Omar and Dr. Ghada are observation-only co-founders. Their
+    // account may read the allowed monitoring views, but can never alter,
+    // approve, export, or administer operational records.
+    dashboard: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    attendance: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    tasks: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    leaves: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    kpi: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    directory: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    settings: { view: false, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    reports: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
   },
   admin_manager: {
     dashboard: { view: true, create: false, edit: false, delete: false, approve: false, export: true, manage: false },

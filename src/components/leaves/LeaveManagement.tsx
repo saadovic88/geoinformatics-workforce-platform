@@ -18,13 +18,14 @@ import {
   Building,
 } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
+import { canSubmitOwnLeave, isLeaveExempt, isLeaveObserver } from '../../utils/leavePolicy';
 
 interface LeaveManagementProps {
   initialTab?: 'requests' | 'balances' | 'dual_approval' | 'wfh_field';
 }
 
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = 'requests' }) => {
-  const { currentUser, users, isFullAccessUser } = useAuth();
+  const { currentUser, users } = useAuth();
   const {
     leaveRequests,
     leaveBalances,
@@ -53,13 +54,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   // Rejection/Approval comment input
   const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
 
-  const isPeopleOperations = isFullAccessUser;
+  const canRequestLeave = canSubmitOwnLeave(currentUser);
   const visibleLeaveRequests = leaveRequests.filter((request) =>
     request.employeeId === currentUser.id ||
-    isPeopleOperations ||
     request.approvalSteps.some((step) => step.approverId === currentUser.id)
   );
-  const canReviewLeave = isPeopleOperations || leaveRequests.some((request) =>
+  const canReviewLeave = leaveRequests.some((request) =>
     request.approvalSteps.some((step) => step.approverId === currentUser.id)
   );
 
@@ -75,7 +75,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
 
   const handleSubmitLeave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reason.trim()) return;
+    if (!canRequestLeave || !reason.trim()) return;
 
     createLeaveRequest({
       employeeId: currentUser.id,
@@ -108,7 +108,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
     (r) => r.status === 'pending_approval' || r.status === 'partially_approved'
   );
   const pendingForReview = pendingDual.filter((request) =>
-    isPeopleOperations || request.approvalSteps.some((step) => step.approverId === currentUser.id && step.status === 'pending')
+    request.approvalSteps.some((step) => step.approverId === currentUser.id && step.status === 'pending')
   );
 
   return (
@@ -128,13 +128,13 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>{t('requestLeaveBtn')}</span>
-          </button>
+          {canRequestLeave && <button
+              onClick={() => setShowNewModal(true)}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{t('requestLeaveBtn')}</span>
+            </button>}
         </div>
       </div>
 
@@ -147,13 +147,23 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           <div className="space-y-0.5">
             <h3 className="font-bold text-sm">{isRtl ? 'مسار اعتماد الإجازات' : 'Leave approval route'}</h3>
             <p className="text-xs text-blue-200/80 max-w-2xl leading-relaxed">
-              {isRtl ? 'يُرسل كل طلب تلقائياً إلى المسؤولين المخوّلين حسب قسم الموظف، ولا يستطيع غير المخوّل الاطلاع على طلبات الآخرين أو اعتمادها.' : 'Each request is routed to authorized reviewers for the employee’s department. Unauthorised users cannot view or approve other employees’ requests.'}
+              {isRtl ? 'الإدارة: عمرو. التقنية والتدريب: بدر. نظم المعلومات الجغرافية: سعد. الاستشعار عن بُعد: شريف. كل طلب يصل إلى مسؤول قسمه فقط، ولا يمكن لأي مسؤول رؤية أو اعتماد طلبات الأقسام الأخرى.' : 'Administration: Amr. Technical and training: Badr. GIS: Saad. Remote sensing: Sherif. Each request reaches only its department owner; no manager can view or approve another area’s requests.'}
             </p>
           </div>
         </div>
 
-        <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">{isRtl ? 'توجيه آمن حسب القسم' : 'Secure department routing'}</span>
+        <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">{isRtl ? 'مسؤول واحد لكل قسم' : 'One owner per department'}</span>
       </div>
+
+      {!canRequestLeave && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+          {isLeaveExempt(currentUser)
+            ? (isRtl ? 'لا يتطلب دورك التنفيذي تقديم طلبات إجازة أو أذونات عبر المنصة.' : 'Your executive role is exempt from submitting leave or permission requests in this platform.')
+            : isLeaveObserver(currentUser)
+            ? (isRtl ? 'حسابك للمراقبة فقط: لا يمكنك تقديم أو اعتماد طلبات الإجازة.' : 'This is a monitoring-only account: leave requests and approvals are unavailable.')
+            : null}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200">
@@ -350,7 +360,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 // Permission rule: user cannot approve their own request!
                 const isRequester = currentUser.id === req.employeeId;
 
-                const currentApprovalStep = req.approvalSteps.find((step) => step.status === 'pending' && (step.approverId === currentUser.id || isFullAccessUser));
+                const currentApprovalStep = req.approvalSteps.find((step) => step.status === 'pending' && step.approverId === currentUser.id);
 
                 const notes = approvalNotes[req.id] || '';
 
@@ -404,7 +414,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                     </div>
 
                     {/* Action Controls for Approvers */}
-                    {!isRequester ? (
+                    {!isRequester && currentApprovalStep ? (
                       <div className="space-y-2 pt-2 border-t border-slate-100">
                         <input
                           type="text"
@@ -416,12 +426,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                           className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"
                         />
 
-                        {currentApprovalStep && <div className="flex gap-2 mb-2">
+                        <div className="flex gap-2 mb-2">
                           <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'approved', notes)} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs">
                             {isRtl ? `اعتماد بصفتي ${currentApprovalStep.approverName}` : `Approve as ${currentApprovalStep.approverName}`}
                           </button>
                           <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">رفض</button>
-                        </div>}
+                        </div>
                       </div>
                     ) : (
                       <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg italic">
@@ -481,7 +491,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   : 'Approved requests automatically permit check-in from outside office geofence without attendance penalty.'}
               </p>
             </div>
-            <button
+            {canRequestLeave && <button
               onClick={() => {
                 setLeaveType('wfh');
                 setShowNewModal(true);
@@ -489,7 +499,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
               className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
             >
               + {isRtl ? 'طلب تصريح جديد' : 'New Permit'}
-            </button>
+            </button>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
