@@ -43,7 +43,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
   const [exceptionNotes, setExceptionNotes] = useState('');
 
   const isExecutive = isFullAccessUser;
-  const isManager = isExecutive;
+  const isManager = isExecutive || ['gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
+  const canViewLocationTelemetry = isManager;
   const allowedEmployeeIds = new Set(
     isExecutive
       ? users.map((user) => user.id)
@@ -77,7 +78,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
       'Overtime',
       'Late (Mins)',
       'Status',
-      'Distance (Meters)',
+      ...(canViewLocationTelemetry ? ['Distance (Meters)'] : []),
     ];
     const rows = filteredRecords.map((r) => {
       const emp = users.find((u) => u.id === r.employeeId);
@@ -90,8 +91,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
         r.netWorkedHours,
         r.overtimeHours,
         r.lateMinutes,
-        t(r.status as any),
-        r.distanceMeters ?? 0,
+        canViewLocationTelemetry ? t(r.status as any) : 'Recorded',
+        ...(canViewLocationTelemetry ? [r.distanceMeters ?? 0] : []),
       ];
     });
     exportToCSV(`Geoinformatics_Attendance_${new Date().toISOString().split('T')[0]}`, headers, rows);
@@ -119,9 +120,13 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            {isRtl
-              ? 'متابعة الحضور والانصراف، التحقق من نطاق الـ 500 متر الجغرافي، واحتساب ساعات العمل الإضافي.'
-              : 'Real-time attendance tracking, 500m geofence validation, and overtime engine.'}
+            {canViewLocationTelemetry
+              ? (isRtl
+                ? 'متابعة الحضور والانصراف، التحقق من نطاق الـ 500 متر الجغرافي، واحتساب ساعات العمل الإضافي.'
+                : 'Real-time attendance tracking, 500m geofence validation, and overtime engine.')
+              : (isRtl
+                ? 'سجل الحضور والانصراف وساعات العمل الخاصة بك.'
+                : 'Your attendance, clock-in/out, and working-hours record.')}
           </p>
         </div>
 
@@ -137,7 +142,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
       </div>
 
       {/* Geofence Map Overview Card */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
+      {canViewLocationTelemetry && <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-600" />
@@ -163,7 +168,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
           userLon={todayAttendance?.checkInLongitude ?? 31.2357}
           height="280px"
         />
-      </div>
+      </div>}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -181,7 +186,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto">
-          {['all', 'present_inside', 'remote_approved', 'external_approved', 'outside_review', 'late'].map((st) => (
+          {(canViewLocationTelemetry ? ['all', 'present_inside', 'remote_approved', 'external_approved', 'outside_review', 'late'] : ['all', 'present_inside', 'remote_approved', 'external_approved', 'late']).map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -210,7 +215,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
                 <th className="p-3 text-start">{t('netHours')}</th>
                 <th className="p-3 text-start">{t('overtimeHours')}</th>
                 <th className="p-3 text-start">{t('lateMinutes')}</th>
-                <th className="p-3 text-start">{t('geofenceStatus')}</th>
+                {canViewLocationTelemetry && <th className="p-3 text-start">{t('geofenceStatus')}</th>}
                 <th className="p-3 text-start">{t('status')}</th>
                 <th className="p-3 text-start">{t('actions')}</th>
               </tr>
@@ -218,15 +223,13 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-slate-400">
+                  <td colSpan={canViewLocationTelemetry ? 10 : 9} className="p-8 text-center text-slate-400">
                     {isRtl ? 'لا توجد سجلات حضور تطابق معايير البحث الحالية.' : 'No attendance records match your filter criteria.'}
                   </td>
                 </tr>
               ) : (
                 filteredRecords.map((rec) => {
                   const emp = users.find((u) => u.id === rec.employeeId);
-                  const isOutside = rec.status === 'outside_review' || rec.status === 'outside_exception';
-
                   return (
                     <tr key={rec.id} className="hover:bg-slate-50/80 transition">
                       <td className="p-3 font-semibold text-slate-900 whitespace-nowrap">{rec.date}</td>
@@ -261,7 +264,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
                           <span className="text-slate-400">0m</span>
                         )}
                       </td>
-                      <td className="p-3 whitespace-nowrap">
+                      {canViewLocationTelemetry && <td className="p-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           {rec.distanceMeters !== undefined && (
                             <span
@@ -278,7 +281,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
                               : '(Outside)'}
                           </span>
                         </div>
-                      </td>
+                      </td>}
                       <td className="p-3 whitespace-nowrap">
                         <span
                           className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
@@ -295,7 +298,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
                               : 'bg-slate-100 text-slate-700'
                           }`}
                         >
-                          {t(rec.status as any)}
+                          {canViewLocationTelemetry ? t(rec.status as any) : (isRtl ? 'مسجل' : 'Recorded')}
                         </span>
                       </td>
                       <td className="p-3 whitespace-nowrap">

@@ -43,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
 
   const isCheckedIn = !!todayAttendance;
   const isCheckedOut = !!todayAttendance?.checkOutTime;
+  const canViewGeofenceTelemetry = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
   const [timerNow, setTimerNow] = useState(() => Date.now());
 
   // The start time lives in the attendance record (and therefore in local
@@ -126,10 +127,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           )}
 
           {/* Office Geofence Status Pill */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium border border-slate-200">
+          {canViewGeofenceTelemetry && <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium border border-slate-200">
             <MapPin className="w-3 h-3 text-blue-600" />
             <span>{isRtl ? 'نطاق 500م نشط' : '500m Geofence Active'}</span>
-          </div>
+          </div>}
         </div>
 
         {/* Right: personal controls only. Account switching is deliberately disabled. */}

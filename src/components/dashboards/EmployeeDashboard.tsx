@@ -33,7 +33,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   onCreateTask,
 }) => {
   const { currentUser, hasPermission } = useAuth();
-  const { todayAttendance, checkIn, geofenceZones, tasks, leaveBalances, kpiRecords } = useData();
+  const { todayAttendance, checkIn, geofenceZones, tasks, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
   const [isSimulatingLocation, setIsSimulatingLocation] = useState(false);
@@ -43,11 +43,6 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   // in ExecutiveDashboard instead of silently turning "My tasks" into every task.
   const myTasks = tasks.filter((t) => t.assigneeIds.includes(currentUser.id));
   const activeTasks = myTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
-
-  // My balances
-  const annualBal = leaveBalances.find((b) => b.employeeId === currentUser.id && b.leaveType === 'annual');
-  const casualBal = leaveBalances.find((b) => b.employeeId === currentUser.id && b.leaveType === 'casual');
-  const sickBal = leaveBalances.find((b) => b.employeeId === currentUser.id && b.leaveType === 'sick');
 
   // My current KPI record
   const myKpi = kpiRecords.find((k) => k.employeeId === currentUser.id && k.month === 9 && k.year === 2026);
@@ -67,6 +62,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   const isCheckedOut = !!todayAttendance?.checkOutTime;
   const canRequestLeave = canSubmitOwnLeave(currentUser);
   const canCreateTask = hasPermission('tasks', 'create');
+  const canViewGeofenceTelemetry = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
 
   return (
     <div className="space-y-6">
@@ -87,7 +83,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
           <p className="text-xs text-slate-300 max-w-xl">
             {isRtl
               ? 'مرحباً بك في منصة القوى العاملة ومشاريع نظم المعلومات والاستشعار. يمكنك متابعة ساعات العمل، إنجاز المهام، ومؤشر الأداء.'
-              : 'Workforce portal: monitor your real-time attendance, GIS deliverables, leave balances, and 100% KPI score.'}
+              : 'Workforce portal: monitor your attendance, GIS deliverables, and performance score.'}
           </p>
         </div>
 
@@ -111,7 +107,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
       </div>
 
       {/* Outside Geofence Alert Banner if outside zone */}
-      {todayAttendance?.status === 'outside_review' && (
+      {canViewGeofenceTelemetry && todayAttendance?.status === 'outside_review' && (
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3 shadow-xs">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-xs space-y-1 flex-1">
@@ -132,7 +128,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
       )}
 
       {/* Grid: Attendance Quick Status & Geofence Map */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={canViewGeofenceTelemetry ? 'grid grid-cols-1 lg:grid-cols-3 gap-6' : 'max-w-xl'}>
         {/* Attendance Action Card */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -189,7 +185,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
                 className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-2"
               >
                 <Clock className="w-4 h-4" />
-                <span>{t('checkIn')} ({isRtl ? 'تحديد النطاق تلقائياً' : 'Auto-Location Geofence'})</span>
+                <span>{t('checkIn')}</span>
               </button>
             ) : !isCheckedOut ? (
               <button
@@ -207,7 +203,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
           </div>
 
           {/* Geofence Testing Simulation Tools */}
-          <div className="pt-3 border-t border-slate-100">
+          {canViewGeofenceTelemetry && <div className="pt-3 border-t border-slate-100">
             <span className="text-[11px] font-semibold text-slate-500 block mb-2">
               {isRtl ? 'أدوات اختبار السياج الجغرافي (تجربة عملية):' : 'Geofence Test Simulator (Demo):'}
             </span>
@@ -225,11 +221,11 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
                 {isRtl ? 'محاكاة: خارج النطاق (7.4كم)' : 'Simulate: Outside Zone (7.4km)'}
               </button>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Live Geofence Mini Map Card */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        {canViewGeofenceTelemetry && <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-emerald-600" />
@@ -270,71 +266,11 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
               {isRtl ? 'الإحداثيات:' : 'Coordinates:'} {geofenceZones[0]?.latitude.toFixed(4)}, {geofenceZones[0]?.longitude.toFixed(4)}
             </span>
           </div>
-        </div>
+        </div>}
       </div>
 
-      {/* Middle Row: Leave Balances & KPI Snapshot */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Annual Leave */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">{t('annualBalance')}</span>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold">
-              {annualBal?.remaining ?? 13} {isRtl ? 'يوم متبقي' : 'days left'}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{annualBal?.remaining ?? 13}</span>
-            <span className="text-xs text-slate-400">/ {annualBal?.entitlement ?? 21} {isRtl ? 'يوم' : 'days'}</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-blue-600 h-full rounded-full"
-              style={{ width: `${((annualBal?.remaining ?? 13) / (annualBal?.entitlement ?? 21)) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Casual Leave */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">{t('casualBalance')}</span>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold">
-              {casualBal?.remaining ?? 5} {isRtl ? 'يوم' : 'days'}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{casualBal?.remaining ?? 5}</span>
-            <span className="text-xs text-slate-400">/ {casualBal?.entitlement ?? 7} days</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-emerald-500 h-full rounded-full"
-              style={{ width: `${((casualBal?.remaining ?? 5) / (casualBal?.entitlement ?? 7)) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Sick Leave */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">{t('sickBalance')}</span>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold">
-              {sickBal?.remaining ?? 13} {isRtl ? 'يوم' : 'days'}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{sickBal?.remaining ?? 13}</span>
-            <span className="text-xs text-slate-400">/ {sickBal?.entitlement ?? 14} days</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-purple-500 h-full rounded-full"
-              style={{ width: `${((sickBal?.remaining ?? 13) / (sickBal?.entitlement ?? 14)) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-
+      {/* KPI Snapshot. Leave balances remain in the dedicated leave section. */}
+      <div className="max-w-md">
         {/* Monthly KPI Score Card */}
         <div
           onClick={() => onNavigate('kpi_my')}
