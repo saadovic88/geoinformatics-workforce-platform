@@ -30,6 +30,7 @@ import {
 import { evaluateGeofence, calculateHaversineDistanceMeters } from '../utils/geoUtils';
 import { canSubmitOwnLeave, getLeaveApprovers } from '../utils/leavePolicy';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface DataContextType {
   // Attendance
@@ -85,6 +86,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, users, isFullAccessUser } = useAuth();
   const didRemapEmployeeIds = useRef(false);
+  const [cloudReady, setCloudReady] = useState(() => !supabase);
 
   // Helper to migrate employee IDs from legacy seed data
   const mapLegacyId = (id: string): string => {
@@ -224,6 +226,58 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [lastAutomationRun, setLastAutomationRun] = useState<string>(new Date().toISOString());
 
+  type CloudKind = 'attendance' | 'zone' | 'schedule' | 'holiday' | 'leave_request' | 'leave_balance' | 'task' | 'kpi' | 'notification' | 'audit';
+  type CloudDocument = { kind: CloudKind; document_id: string; owner_id: string | null; payload: unknown };
+
+  const persistDocuments = (kind: CloudKind, documents: Array<{ id: string; ownerId: string | null; payload: unknown }>) => {
+    if (!supabase || !cloudReady || !documents.length) return;
+    void supabase.from('company_data_documents').upsert(
+      documents.map((document) => ({ kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload })),
+      { onConflict: 'kind,document_id' }
+    ).then(({ error }) => {
+      if (error) console.error(`Could not persist ${kind} documents to Supabase`, error.message);
+    });
+  };
+
+  // Supabase is the source of truth whenever configured. Browser storage is
+  // retained strictly as an offline cache, never as the only company record.
+  useEffect(() => {
+    if (!supabase || !currentUser?.id) return;
+    let cancelled = false;
+    setCloudReady(false);
+    void supabase
+      .from('company_data_documents')
+      .select('kind, document_id, owner_id, payload')
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error('Could not load central company data from Supabase', error.message);
+          setCloudReady(true);
+          return;
+        }
+        const docs = (data || []) as CloudDocument[];
+        const byKind = (kind: CloudKind) => docs.filter((document) => document.kind === kind).map((document) => document.payload);
+        // On a newly provisioned project the first named administrator uploads
+        // the existing company seed. Every other device replaces its browser
+        // cache with the authorised central records, including an empty list.
+        const shouldHydrate = docs.length > 0 || !isFullAccessUser;
+        if (shouldHydrate) {
+          setAttendanceRecords(byKind('attendance') as AttendanceRecord[]);
+          setGeofenceZones(byKind('zone') as GeofenceZone[]);
+          setWorkSchedules(byKind('schedule') as WorkSchedule[]);
+          setHolidays(byKind('holiday') as Holiday[]);
+          setLeaveRequests(byKind('leave_request') as LeaveRequest[]);
+          setLeaveBalances(byKind('leave_balance') as LeaveBalance[]);
+          setTasks(byKind('task') as Task[]);
+          setKpiRecords(byKind('kpi') as MonthlyKPIRecord[]);
+          setNotifications(byKind('notification') as NotificationItem[]);
+          setAuditLogs(byKind('audit') as AuditLogItem[]);
+        }
+        setCloudReady(true);
+      });
+    return () => { cancelled = true; };
+  }, [currentUser?.id, isFullAccessUser]);
+
   // Seed data predates Supabase and references legacy employee IDs. Once the
   // real directory arrives, align every relation with the Auth/Profile UUID so
   // dashboards, tasks, leaves and KPI views remain populated after login.
@@ -276,43 +330,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Persistence effects
   useEffect(() => {
     localStorage.setItem('geo_attendance_data', JSON.stringify(attendanceRecords));
-  }, [attendanceRecords]);
+    persistDocuments('attendance', attendanceRecords.map((record) => ({ id: record.id, ownerId: record.employeeId, payload: record })));
+  }, [attendanceRecords, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_zones_data', JSON.stringify(geofenceZones));
-  }, [geofenceZones]);
+    persistDocuments('zone', geofenceZones.map((zone) => ({ id: zone.id, ownerId: null, payload: zone })));
+  }, [geofenceZones, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_schedules_data', JSON.stringify(workSchedules));
-  }, [workSchedules]);
+    persistDocuments('schedule', workSchedules.map((schedule) => ({ id: schedule.id, ownerId: null, payload: schedule })));
+  }, [workSchedules, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_holidays_data', JSON.stringify(holidays));
-  }, [holidays]);
+    persistDocuments('holiday', holidays.map((holiday) => ({ id: holiday.id, ownerId: null, payload: holiday })));
+  }, [holidays, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_leave_requests_data', JSON.stringify(leaveRequests));
-  }, [leaveRequests]);
+    persistDocuments('leave_request', leaveRequests.map((request) => ({ id: request.id, ownerId: request.employeeId, payload: request })));
+  }, [leaveRequests, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_leave_balances_data', JSON.stringify(leaveBalances));
-  }, [leaveBalances]);
+    persistDocuments('leave_balance', leaveBalances.map((balance) => ({ id: `${balance.employeeId}_${balance.leaveType}`, ownerId: balance.employeeId, payload: balance })));
+  }, [leaveBalances, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_tasks_data', JSON.stringify(tasks));
-  }, [tasks]);
+    persistDocuments('task', tasks.map((task) => ({ id: task.id, ownerId: task.creatorId, payload: task })));
+  }, [tasks, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_kpi_data', JSON.stringify(kpiRecords));
-  }, [kpiRecords]);
+    persistDocuments('kpi', kpiRecords.map((record) => ({ id: record.id, ownerId: record.employeeId, payload: record })));
+  }, [kpiRecords, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_notifs_data', JSON.stringify(notifications));
-  }, [notifications]);
+    persistDocuments('notification', notifications.map((notification) => ({ id: notification.id, ownerId: notification.userId === 'all' ? null : notification.userId, payload: notification })));
+  }, [notifications, cloudReady]);
 
   useEffect(() => {
     localStorage.setItem('geo_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
+    persistDocuments('audit', auditLogs.map((log) => ({ id: log.id, ownerId: log.userId === 'system' ? null : log.userId, payload: log })));
+  }, [auditLogs, cloudReady]);
 
   const logAction = (action: string, module: string, details: string) => {
     const newLog: AuditLogItem = {
@@ -352,7 +416,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Auto check-in trigger when user logs in if not checked in today
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !cloudReady) return;
     const existing = attendanceRecords.find(
       (r) => r.employeeId === currentUser.id && r.date === todayStr
     );
@@ -360,7 +424,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Auto check-in
       checkIn();
     }
-  }, [currentUser?.id, todayStr]);
+  }, [currentUser?.id, todayStr, cloudReady]);
 
   // Check In Implementation
   const checkIn = async (
