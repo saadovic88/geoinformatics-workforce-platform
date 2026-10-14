@@ -9,6 +9,14 @@ interface InstallPromptEvent extends Event {
 
 const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+const installTarget = () => {
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return 'Android';
+  if (/Windows/i.test(ua)) return 'Windows';
+  if (/Macintosh|Mac OS X/i.test(ua)) return 'Mac';
+  if (/Linux/i.test(ua)) return 'Linux';
+  return 'this device';
+};
 
 /** Chrome, Edge and Android expose a native one-click install prompt. */
 export function PwaInstallPrompt() {
@@ -38,6 +46,7 @@ export function PwaInstallPrompt() {
 
   if (dismissed || isStandalone()) return null;
   const ios = isIos();
+  const target = installTarget();
   const dismiss = () => {
     sessionStorage.setItem('pwa-install-dismissed', 'true');
     setDismissed(true);
@@ -70,7 +79,7 @@ export function PwaInstallPrompt() {
     ? {
         title: 'ثبّت منصة جيوانفورماتكس',
         description: ios ? 'أضف المنصة إلى الشاشة الرئيسية لتعمل كتطبيق مستقل.' : 'افتح المنصة كتطبيق مستقل من جهازك بضغطة واحدة.',
-        install: 'تثبيت الآن', installing: 'جارٍ فتح التثبيت...', help: 'عرض خطوات التثبيت', iosShare: 'فتح قائمة المشاركة',
+        install: `اضغط لتثبيت التطبيق على ${target}`, installing: 'جارٍ فتح نافذة التثبيت...', help: `اضغط لتثبيت التطبيق على ${target}`, iosShare: 'اضغط لفتح قائمة المشاركة',
         iosHint: 'من قائمة المشاركة اختر «إضافة إلى الشاشة الرئيسية».',
         browserHint: 'من قائمة المتصفح ⋮ اختر «تثبيت التطبيق» أو «Install app».',
         unavailable: 'قد يظهر خيار التثبيت بعد فتح المنصة مرة واحدة مع اتصال بالإنترنت.',
@@ -78,7 +87,7 @@ export function PwaInstallPrompt() {
     : {
         title: 'Install Geoinformatics',
         description: ios ? 'Add the platform to your Home Screen as a standalone app.' : 'Open the platform as a standalone app with one click.',
-        install: 'Install now', installing: 'Opening installer…', help: 'Show install steps', iosShare: 'Open Share menu',
+        install: `Click to install on ${target}`, installing: 'Opening installer…', help: `Click to install on ${target}`, iosShare: 'Click to open Share menu',
         iosHint: 'From Share, choose “Add to Home Screen”.',
         browserHint: 'From your browser menu ⋮, choose “Install app”.',
         unavailable: 'Installation may appear after opening the platform once while online.',
