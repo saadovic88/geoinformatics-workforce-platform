@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -51,6 +51,13 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
   const [managerNotes, setManagerNotes] = useState<string>('Strong performance in raster GIS inferencing.');
   const [evalSuccess, setEvalSuccess] = useState(false);
 
+  // KPI is intentionally a multi-review process. The three named company
+  // leaders submit independent reviews; none of them overwrites another.
+  const kpiEvaluators = users.filter((user) =>
+    ['m.badawy@geoinformatics.com', 'amr.soghayar@geoinformatics.com', 'badr.salama@geoinformatics.com']
+      .includes(user.email.toLowerCase())
+  );
+
   const months = [
     { num: 1, name: isRtl ? 'يناير' : 'January' },
     { num: 2, name: isRtl ? 'فبراير' : 'February' },
@@ -66,13 +73,43 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
     { num: 12, name: isRtl ? 'ديسمبر' : 'December' },
   ];
 
-  // Current active KPI
-  const activeKPI =
-    kpiRecords.find((k) => k.employeeId === selectedEmployeeId && k.month === selectedMonth) ||
-    kpiRecords.find((k) => k.employeeId === selectedEmployeeId) ||
-    kpiRecords[0];
+  const selectedMonthReviews = kpiRecords.filter(
+    (record) => record.employeeId === selectedEmployeeId && record.month === selectedMonth && record.year === 2026
+  );
+  const ownReview = selectedMonthReviews.find((record) => record.evaluatorId === currentUser.id);
+  // The detail page prioritizes the viewer's own review, then falls back to a
+  // historical review. The scorecard below makes every leader's status explicit.
+  const activeKPI = ownReview || selectedMonthReviews[0] ||
+    kpiRecords.find((k) => k.employeeId === selectedEmployeeId) || kpiRecords[0];
+  const averageReviewScore = selectedMonthReviews.length
+    ? Number((selectedMonthReviews.reduce((sum, record) => sum + record.totalScore, 0) / selectedMonthReviews.length).toFixed(1))
+    : undefined;
 
   const targetEmployee = users.find((u) => u.id === selectedEmployeeId) || currentUser;
+  const scoringEmployee = users.find((user) => user.id === scoringUser) || currentUser;
+  const scoringMonthReviews = kpiRecords.filter(
+    (record) => record.employeeId === scoringUser && record.year === 2026 && record.month === selectedMonth
+  );
+
+  useEffect(() => {
+    if (!isFullAccessUser) return;
+    const existingReview = kpiRecords.find(
+      (record) => record.employeeId === scoringUser && record.year === 2026 && record.month === selectedMonth && record.evaluatorId === currentUser.id
+    );
+    if (existingReview) {
+      setAttScore(existingReview.attendanceScore.scoreOutOfWeight);
+      setWorkScore(existingReview.workScore.scoreOutOfWeight);
+      setBehScore(existingReview.behaviorScore.scoreOutOfWeight);
+      setDevScore(existingReview.selfDevScore.scoreOutOfWeight);
+      setManagerNotes(existingReview.workScore.managerNotes || '');
+      return;
+    }
+    setAttScore(18.5);
+    setWorkScore(37);
+    setBehScore(18);
+    setDevScore(18);
+    setManagerNotes('');
+  }, [currentUser.id, isFullAccessUser, kpiRecords, scoringUser, selectedMonth]);
 
   // Annual calculation: average of 12 months
   // For demo, generate a realistic 12-month curve
@@ -99,7 +136,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
     if (!isFullAccessUser) return;
     const total = parseFloat((attScore + workScore + behScore + devScore).toFixed(1));
     const newRecord: MonthlyKPIRecord = {
-      id: `kpi_${scoringUser}_2026_${selectedMonth}`,
+      id: `kpi_${scoringUser}_2026_${selectedMonth}_${currentUser.id}`,
       employeeId: scoringUser,
       year: 2026,
       month: selectedMonth,
@@ -138,6 +175,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
       totalScore: total,
       status: 'published',
       reviewedBy: currentUser.nameEn,
+      evaluatorId: currentUser.id,
       publishedAt: new Date().toISOString(),
       evidenceLinks: [],
     };
@@ -319,8 +357,12 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
 
             <div className="flex items-center gap-4">
               <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-xs text-center min-w-[120px]">
-                <span className="text-xs text-blue-200 block mb-0.5">{t('monthlyKPIScore')}</span>
-                <span className="text-3xl font-black text-white">{activeKPI?.totalScore ?? 94.5}%</span>
+                <span className="text-xs text-blue-200 block mb-0.5">
+                  {selectedMonthReviews.length > 1
+                    ? (isRtl ? `متوسط ${selectedMonthReviews.length} تقييمات` : `${selectedMonthReviews.length}-review average`)
+                    : t('monthlyKPIScore')}
+                </span>
+                <span className="text-3xl font-black text-white">{averageReviewScore ?? activeKPI?.totalScore ?? 94.5}%</span>
               </div>
               <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-xs text-center min-w-[120px]">
                 <span className="text-xs text-amber-200 block mb-0.5">{t('annualKPIScore')}</span>
@@ -576,6 +618,49 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
               </div>
             </div>
 
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-bold text-slate-800">
+                    {isRtl ? 'حالة التقييمات المستقلة' : 'Independent review status'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {isRtl
+                      ? `تقييمات ${isRtl ? scoringEmployee.nameAr : scoringEmployee.nameEn} للشهر المحدد؛ كل مسؤول يحفظ تقييمه منفصلاً.`
+                      : `${scoringEmployee.nameEn}'s reviews for the selected month. Each leader saves an independent evaluation.`}
+                  </p>
+                </div>
+                <span className="rounded-full bg-white border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                  {scoringMonthReviews.length}/3 {isRtl ? 'تقييمات منشورة' : 'reviews published'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {kpiEvaluators.map((evaluator) => {
+                  const review = scoringMonthReviews.find((record) => record.evaluatorId === evaluator.id);
+                  const isCurrentEvaluator = evaluator.id === currentUser.id;
+                  return (
+                    <div key={evaluator.id} className={`rounded-lg border p-2.5 ${isCurrentEvaluator ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}>
+                      <div className="flex items-center gap-2">
+                        <UserAvatar src={evaluator.avatarUrl} name={isRtl ? evaluator.nameAr : evaluator.nameEn} size="xs" rounded="full" />
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-[11px] text-slate-800">{isRtl ? evaluator.nameAr : evaluator.nameEn}</p>
+                          <p className={`text-[10px] font-semibold ${review ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {review ? `${review.totalScore}% · ${isRtl ? 'منشور' : 'Published'}` : (isRtl ? 'بانتظار التقييم' : 'Awaiting review')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {scoringMonthReviews.length > 0 && (
+                <p className="text-[11px] text-slate-600">
+                  {isRtl ? 'متوسط التقييمات المنشورة: ' : 'Published-review average: '}
+                  <b>{Number((scoringMonthReviews.reduce((sum, record) => sum + record.totalScore, 0) / scoringMonthReviews.length).toFixed(1))}%</b>
+                </p>
+              )}
+            </div>
+
             {/* 4 Score inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
               <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200 space-y-1">
@@ -660,7 +745,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
                 onClick={handleSaveEvaluation}
                 className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition"
               >
-                Publish Monthly KPI Evaluation
+                {isRtl ? `نشر تقييمي باسم ${currentUser.nameAr}` : `Publish My Evaluation as ${currentUser.nameEn}`}
               </button>
             </div>
           </div>

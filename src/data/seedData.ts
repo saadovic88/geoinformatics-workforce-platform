@@ -954,6 +954,7 @@ export const INITIAL_MONTHLY_KPIS: MonthlyKPIRecord[] = [
       totalScore: total,
       status: 'published' as const,
       publishedAt: '2026-09-28T18:00:00Z',
+      evaluatorId: 'emp_badawy',
       reviewedBy: user.managerId || 'emp_omar',
       evidenceLinks: [
         { title: 'ArcGIS Pro Spatial Analyst Credential', url: '#', category: 'self_development' },

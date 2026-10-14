@@ -255,6 +255,8 @@ export interface MonthlyKPIRecord {
   totalScore: number; // Sum of 4 weighted scores out of 100
   status: 'draft' | 'submitted' | 'published';
   publishedAt?: string;
+  /** The named leader who submitted this independent monthly evaluation. */
+  evaluatorId?: string;
   reviewedBy?: string;
   evidenceLinks: { title: string; url: string; category: string }[];
 }

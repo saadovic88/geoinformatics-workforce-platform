@@ -197,7 +197,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (Array.isArray(parsed)) {
           return parsed
             .filter((k: MonthlyKPIRecord) => k.employeeId !== 'emp_adel')
-            .map((k: MonthlyKPIRecord) => ({ ...k, employeeId: mapLegacyId(k.employeeId) }));
+            .map((k: MonthlyKPIRecord) => ({
+              ...k,
+              employeeId: mapLegacyId(k.employeeId),
+              // Historical single-review records are retained as the CEO's
+              // initial review. New records are scoped to their evaluator.
+              evaluatorId: k.evaluatorId || (k.reviewedBy?.startsWith('emp_') ? k.reviewedBy : 'emp_badawy'),
+            }));
         }
       } catch (e) {
         console.error(e);
@@ -257,7 +263,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       comments: task.comments.map((comment) => ({ ...comment, userId: mapLegacyId(comment.userId) })),
       activityLogs: task.activityLogs.map((log) => ({ ...log, userId: mapLegacyId(log.userId) })),
     })));
-    setKpiRecords((prev) => prev.map((record) => ({ ...record, employeeId: mapLegacyId(record.employeeId), reviewedBy: record.reviewedBy ? mapLegacyId(record.reviewedBy) : undefined })));
+    setKpiRecords((prev) => prev.map((record) => ({
+      ...record,
+      employeeId: mapLegacyId(record.employeeId),
+      evaluatorId: record.evaluatorId ? mapLegacyId(record.evaluatorId) : record.evaluatorId,
+      reviewedBy: record.reviewedBy ? mapLegacyId(record.reviewedBy) : undefined,
+    })));
     setNotifications((prev) => prev.map((notification) => ({ ...notification, userId: notification.userId === 'all' ? 'all' : mapLegacyId(notification.userId) })));
     setAuditLogs((prev) => prev.map((log) => ({ ...log, userId: mapLegacyId(log.userId) })));
   }, [users]);
@@ -985,7 +996,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
     if (decision === 'approve') {
       setKpiRecords((previous) => previous.map((record) => {
-        if (!taskToReview.assigneeIds.includes(record.employeeId)) return record;
+        if (!taskToReview.assigneeIds.includes(record.employeeId) || record.evaluatorId !== currentUser.id) return record;
         const nextWorkScore = Number(((normalizedScore / 100) * 40).toFixed(1));
         const totalScore = Number((record.totalScore - record.workScore.scoreOutOfWeight + nextWorkScore).toFixed(1));
         return { ...record, workScore: { ...record.workScore, scoreOutOfWeight: nextWorkScore, scorePercentage: normalizedScore, managerNotes: notes || `Task review: ${taskToReview.title}` }, totalScore, status: 'published', reviewedBy: currentUser.nameEn, publishedAt: new Date().toISOString() };
@@ -1005,7 +1016,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // KPI Management
   const updateKPIRecord = (record: MonthlyKPIRecord) => {
     if (!isFullAccessUser) return;
-    setKpiRecords((prev) => prev.map((k) => (k.id === record.id ? record : k)));
+    setKpiRecords((prev) => {
+      const existingIndex = prev.findIndex((k) => k.id === record.id);
+      if (existingIndex === -1) return [...prev, record];
+      return prev.map((k) => (k.id === record.id ? record : k));
+    });
     logAction('KPI_UPDATED', 'KPI', `KPI updated for employee ${record.employeeId} (Month ${record.month}/${record.year})`);
   };
 
