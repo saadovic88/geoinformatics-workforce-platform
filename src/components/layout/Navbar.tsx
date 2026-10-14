@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -16,6 +16,8 @@ import {
   Menu,
   Sun,
   Moon,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { CompanyLogo } from '../common/CompanyLogo';
@@ -36,10 +38,59 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showSwitchMenu, setShowSwitchMenu] = useState(false);
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(() => localStorage.getItem('geo_notification_sound') !== 'off');
+  const knownUnreadIds = useRef<Set<string> | null>(null);
+  const notificationAudioContext = useRef<AudioContext | null>(null);
 
   // Notifications are private to the intended recipient (or company-wide).
   const visibleNotifications = notifications.filter((n) => n.userId === currentUser.id || n.userId === 'all');
   const unreadNotifs = visibleNotifications.filter((n) => !n.isRead);
+
+  const getNotificationAudioContext = () => {
+    if (!notificationAudioContext.current) {
+      notificationAudioContext.current = new AudioContext();
+    }
+    return notificationAudioContext.current;
+  };
+
+  const playNotificationTone = () => {
+    try {
+      const context = getNotificationAudioContext();
+      if (context.state === 'suspended') void context.resume();
+      const now = context.currentTime;
+      [880, 1174].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, now + index * 0.12);
+        gain.gain.setValueAtTime(0.0001, now + index * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.075, now + index * 0.12 + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.12 + 0.35);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start(now + index * 0.12);
+        oscillator.stop(now + index * 0.12 + 0.37);
+      });
+    } catch {
+      // Browsers may defer audio until an interaction; notifications still work normally.
+    }
+  };
+
+  const toggleNotificationSound = () => {
+    const nextValue = !notificationSoundEnabled;
+    setNotificationSoundEnabled(nextValue);
+    localStorage.setItem('geo_notification_sound', nextValue ? 'on' : 'off');
+    if (nextValue) playNotificationTone();
+  };
+
+  useEffect(() => {
+    const currentUnreadIds = new Set(unreadNotifs.map((notification) => notification.id));
+    const previousUnreadIds = knownUnreadIds.current;
+    if (previousUnreadIds) {
+      const hasNewNotification = [...currentUnreadIds].some((id) => !previousUnreadIds.has(id));
+      if (hasNewNotification && notificationSoundEnabled) playNotificationTone();
+    }
+    knownUnreadIds.current = currentUnreadIds;
+  }, [notificationSoundEnabled, unreadNotifs]);
 
   const isCheckedIn = !!todayAttendance;
   const isCheckedOut = !!todayAttendance?.checkOutTime;
@@ -245,14 +296,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                       </span>
                     )}
                   </div>
-                  {unreadNotifs.length > 0 && (
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={markAllNotificationsRead}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      type="button"
+                      onClick={toggleNotificationSound}
+                      className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-300 transition"
+                      title={notificationSoundEnabled ? (isRtl ? 'إيقاف صوت الإشعارات' : 'Turn notification sound off') : (isRtl ? 'تشغيل صوت الإشعارات' : 'Turn notification sound on')}
+                      aria-label="Toggle notification sound"
                     >
-                      {t('markAllRead')}
+                      {notificationSoundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
                     </button>
-                  )}
+                    {unreadNotifs.length > 0 && (
+                      <button
+                        onClick={markAllNotificationsRead}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      >
+                        {t('markAllRead')}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">

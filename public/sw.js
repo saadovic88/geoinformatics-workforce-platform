@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geoinformatics-shell-v3';
+const CACHE_NAME = 'geoinformatics-shell-v4';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/logo.jpg', '/assets/geoinformatics-app-icon-192.png', '/assets/geoinformatics-app-icon-512.png'];
 
 self.addEventListener('install', (event) => {

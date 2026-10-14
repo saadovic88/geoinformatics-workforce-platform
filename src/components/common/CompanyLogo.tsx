@@ -38,16 +38,17 @@ export const CompanyLogo: React.FC<CompanyLogoProps> = ({
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <div
-        className={`${sizeClasses[size]} relative overflow-hidden bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 flex items-center justify-center shrink-0 border border-blue-400/30 shadow-md shadow-blue-950/20 group`}
+        className={`${sizeClasses[size]} relative shrink-0 overflow-hidden bg-gradient-to-br from-[#0f2f5f] via-blue-500 to-sky-200 p-[2px] shadow-md shadow-blue-950/15 ring-1 ring-slate-200/80 group`}
       >
-        {!imageError ? (
-          <img
-            src="/assets/logo.jpg"
-            alt="Geoinformatics Logo"
-            onError={() => setImageError(true)}
-            className="w-full h-full object-cover transform transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
+        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[inherit] bg-white">
+          {!imageError ? (
+            <img
+              src="/assets/logo.jpg"
+              alt="Geoinformatics Logo"
+              onError={() => setImageError(true)}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          ) : (
           /* High-Fidelity GIS Vector Fallback */
           <svg
             width={iconSizes[size]}
@@ -91,7 +92,8 @@ export const CompanyLogo: React.FC<CompanyLogoProps> = ({
               </radialGradient>
             </defs>
           </svg>
-        )}
+          )}
+        </div>
       </div>
 
       {showText && (
