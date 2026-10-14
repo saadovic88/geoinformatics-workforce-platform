@@ -73,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 py-2.5 transition-colors">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 py-2 transition-colors">
       <div className="flex min-w-0 items-center justify-between gap-1.5 sm:gap-4">
         {/* Left: Mobile Toggle & Brand */}
         <div className="flex items-center gap-3">
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
         {/* Center: Live Attendance Chip & Quick Actions */}
         <div className="hidden md:flex items-center gap-2">
           {isCheckedIn && !isCheckedOut ? (
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -119,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           ) : (
             <button
               onClick={() => checkIn()}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-2xs transition"
             >
               <Clock className="w-3.5 h-3.5" />
               <span>{t('checkIn')}</span>

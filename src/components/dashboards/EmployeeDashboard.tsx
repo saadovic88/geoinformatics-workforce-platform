@@ -67,7 +67,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner & Welcome */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-400/30">
@@ -98,7 +98,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
           </button>}
           {canCreateTask && <button
             onClick={onCreateTask}
-            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center gap-2 shadow-md shadow-blue-900/30"
+            className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition flex items-center gap-2 shadow-sm"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('createTask')}</span>
@@ -163,13 +163,13 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
                 {todayAttendance?.checkOutTime || '--:--'}
               </span>
             </div>
-            <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-100">
+            <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100">
               <span className="text-blue-700 font-semibold block mb-0.5">{t('netHours')}</span>
               <span className="font-bold text-blue-900 text-base">
                 {todayAttendance?.netWorkedHours ?? 2.5} <span className="text-[10px] font-normal">/ 8h</span>
               </span>
             </div>
-            <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-100">
+            <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
               <span className="text-emerald-700 font-semibold block mb-0.5">{t('overtimeHours')}</span>
               <span className="font-bold text-emerald-900 text-base">
                 {todayAttendance?.overtimeHours ?? 0} <span className="text-[10px] font-normal">hrs</span>
@@ -274,7 +274,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
         {/* Monthly KPI Score Card */}
         <div
           onClick={() => onNavigate('kpi_my')}
-          className="bg-gradient-to-br from-indigo-900 to-blue-900 p-4 rounded-2xl text-white shadow-sm cursor-pointer hover:shadow-md transition space-y-2"
+          className="bg-slate-900 p-4 rounded-2xl text-white shadow-sm cursor-pointer hover:bg-slate-800 hover:shadow-md transition space-y-2 border border-slate-800"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-blue-200 font-medium">{t('monthlyKPIScore')}</span>

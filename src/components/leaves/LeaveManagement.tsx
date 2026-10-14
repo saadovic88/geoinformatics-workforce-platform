@@ -114,6 +114,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
     request.approvalSteps.some((step) => step.approverId === currentUser.id)
   );
 
+  const approvalLabel = (status: LeaveRequest['approvalSteps'][number]['status']) => {
+    if (status === 'approved') return isRtl ? 'موافق' : 'Approved';
+    if (status === 'rejected') return isRtl ? 'رافض' : 'Rejected';
+    return isRtl ? 'بانتظار التوقيع' : 'Awaiting signature';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -141,7 +147,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
         </div>
       </div>
 
-      {/* Department-routed approval policy */}
+      {/* Independent approval route */}
       <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white shadow-md flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-emerald-400 font-bold border border-white/10">
@@ -150,12 +156,14 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           <div className="space-y-0.5">
             <h3 className="font-bold text-sm">{isRtl ? 'مسار اعتماد الإجازات' : 'Leave approval route'}</h3>
             <p className="text-xs text-blue-200/80 max-w-2xl leading-relaxed">
-              {isRtl ? 'الإدارة: عمرو. التقنية والتدريب: بدر. نظم المعلومات الجغرافية: سعد. الاستشعار عن بُعد: شريف. كل طلب يصل إلى مسؤول قسمه فقط، ولا يمكن لأي مسؤول رؤية أو اعتماد طلبات الأقسام الأخرى.' : 'Administration: Amr. Technical and training: Badr. GIS: Saad. Remote sensing: Sherif. Each request reaches only its department owner; no manager can view or approve another area’s requests.'}
+              {isRtl
+                ? 'يعتمد الطلب بعد موافقة محمد بدوي وعمرو وبدر ورئيس القسم المختص. تظهر حالة كل توقيع بوضوح؛ وإذا رُفض الطلب، يبقى مرفوضاً إلى أن يعدّل صاحب الرفض قراره.'
+                : 'A request is approved only after Mohamed Badawy, Amr, Badr, and the relevant department head have each approved it. Every signature is visible; a rejection remains in effect until that reviewer changes it.'}
             </p>
           </div>
         </div>
 
-        <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">{isRtl ? 'مسؤول واحد لكل قسم' : 'One owner per department'}</span>
+        <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">{isRtl ? 'توقيعات مستقلة' : 'Independent signatures'}</span>
       </div>
 
       {!canRequestLeave && (
@@ -230,7 +238,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                     <th className="p-3 text-start">{isRtl ? 'المدة' : 'Duration'}</th>
                     <th className="p-3 text-start">{isRtl ? 'التواريخ' : 'Dates'}</th>
                     <th className="p-3 text-start">{t('reason')}</th>
-                    <th className="p-3 text-start">{isRtl ? 'الاعتماد الثنائي' : 'Dual Signatures'}</th>
+                    <th className="p-3 text-start">{isRtl ? 'سجل الاعتمادات' : 'Approval record'}</th>
                     <th className="p-3 text-start">{t('status')}</th>
                     <th className="p-3 text-start">{t('actions')}</th>
                   </tr>
@@ -239,6 +247,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   {visibleLeaveRequests.map((req) => {
                     const requester = users.find((u) => u.id === req.employeeId);
                     const isMyRequest = req.employeeId === currentUser.id;
+                    const approvedCount = req.approvalSteps.filter((step) => step.status === 'approved').length;
+                    const rejectedCount = req.approvalSteps.filter((step) => step.status === 'rejected').length;
 
                     return (
                       <tr key={req.id} className="hover:bg-slate-50/70 transition">
@@ -273,7 +283,15 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                           {req.reason}
                         </td>
                         <td className="p-3 whitespace-nowrap">
-                          <div className="space-y-1 text-[11px]">
+                          <div className="space-y-1 text-[11px] min-w-[172px]">
+                            <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100 text-[10px]">
+                              <span className="font-bold text-slate-700">
+                                {isRtl ? `${approvedCount}/${req.approvalSteps.length} موافقات` : `${approvedCount}/${req.approvalSteps.length} approved`}
+                              </span>
+                              {rejectedCount > 0 && (
+                                <span className="font-bold text-rose-600">{isRtl ? `${rejectedCount} رفض` : `${rejectedCount} rejected`}</span>
+                              )}
+                            </div>
                             {req.approvalSteps.map((s, i) => (
                               <div key={i} className="flex items-center gap-1.5">
                                 <span className="font-medium text-slate-700 truncate max-w-[120px]">
@@ -288,7 +306,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                                       : 'text-amber-600'
                                   }`}
                                 >
-                                  {s.status}
+                                  {approvalLabel(s.status)}
                                 </span>
                               </div>
                             ))}
@@ -366,6 +384,9 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 const currentApprovalStep = req.approvalSteps.find((step) => step.approverId === currentUser.id);
 
                 const notes = approvalNotes[req.id] || '';
+                const approvedCount = req.approvalSteps.filter((step) => step.status === 'approved').length;
+                const rejectedCount = req.approvalSteps.filter((step) => step.status === 'rejected').length;
+                const pendingCount = req.approvalSteps.length - approvedCount - rejectedCount;
 
                 return (
                   <div
@@ -405,12 +426,21 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                       )}
                     </div>
 
-                    {/* The required reviewers are generated from the department route. */}
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                      <span className="font-bold text-slate-700">
+                        {isRtl ? `حالة التوقيعات: ${approvedCount}/${req.approvalSteps.length} موافق` : `Signature progress: ${approvedCount}/${req.approvalSteps.length} approved`}
+                      </span>
+                      <span className="text-emerald-700">{isRtl ? `${approvedCount} موافق` : `${approvedCount} approved`}</span>
+                      <span className="text-amber-700">{isRtl ? `${pendingCount} بانتظار التوقيع` : `${pendingCount} awaiting`}</span>
+                      {rejectedCount > 0 && <span className="font-bold text-rose-700">{isRtl ? `${rejectedCount} رافض` : `${rejectedCount} rejected`}</span>}
+                    </div>
+
+                    {/* Each required reviewer and their current decision. */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                       {req.approvalSteps.map((step) => (
                         <div key={step.approverId} className={`p-2.5 rounded-xl border ${step.status === 'approved' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : step.status === 'rejected' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-amber-50/70 border-amber-200 text-amber-800'}`}>
                           <span className="font-bold block truncate">{step.approverName}</span>
-                          <span className="text-[10px] block mt-0.5">{isRtl ? 'الحالة: ' : 'Status: '}<b>{step.status === 'approved' ? (isRtl ? 'معتمد' : 'APPROVED') : step.status === 'rejected' ? (isRtl ? 'مرفوض' : 'REJECTED') : (isRtl ? 'معلق' : 'PENDING')}</b></span>
+                          <span className="text-[10px] block mt-0.5">{isRtl ? 'الحالة: ' : 'Status: '}<b>{approvalLabel(step.status)}</b></span>
                           {step.notes && <p className="text-[10px] text-slate-500 italic mt-1">"{step.notes}"</p>}
                         </div>
                       ))}
@@ -431,9 +461,13 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
 
                         <div className="flex gap-2 mb-2">
                           <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'approved', notes)} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs">
-                            {isRtl ? `اعتماد بصفتي ${currentApprovalStep.approverName}` : `Approve as ${currentApprovalStep.approverName}`}
+                            {currentApprovalStep.status === 'rejected'
+                              ? (isRtl ? 'إلغاء الرفض والموافقة' : 'Reverse rejection and approve')
+                              : (isRtl ? `اعتماد بصفتي ${currentApprovalStep.approverName}` : `Approve as ${currentApprovalStep.approverName}`)}
                           </button>
-                          <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">رفض</button>
+                          <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">
+                            {currentApprovalStep.status === 'approved' ? (isRtl ? 'سحب الموافقة ورفض' : 'Withdraw approval') : (isRtl ? 'رفض' : 'Reject')}
+                          </button>
                         </div>
                       </div>
                     ) : (

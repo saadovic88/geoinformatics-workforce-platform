@@ -185,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Scrollable Nav Groups */}
-        <nav aria-label={isRtl ? 'التنقل الرئيسي' : 'Main navigation'} className="flex-1 overflow-y-auto overscroll-contain p-3 pb-6 space-y-6">
+        <nav aria-label={isRtl ? 'التنقل الرئيسي' : 'Main navigation'} className="flex-1 overflow-y-auto overscroll-contain p-3 pb-5 space-y-4">
           {navGroups.map((group, idx) => {
             const visibleItems = group.items.filter((item) => item.show);
             if (visibleItems.length === 0) return null;
@@ -197,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="button"
                   onClick={() => setExpandedGroups((previous) => ({ ...previous, [group.titleEn]: !isExpanded }))}
                   aria-expanded={isExpanded}
-                  className="w-full min-h-8 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between rounded-lg hover:bg-slate-800 hover:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-inset"
+                  className="w-full min-h-8 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between rounded-lg hover:bg-slate-800 hover:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-inset"
                 >
                   <span>{isRtl ? group.titleAr : group.titleEn}</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
@@ -212,9 +212,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectPage(item.id);
                         if (onCloseMobile) onCloseMobile();
                       }}
-                      className={`min-h-11 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-inset ${
+                      className={`min-h-10 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-inset ${
                         isActive
-                          ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                          ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/70 font-semibold'
                           : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                       }`}
                     >
