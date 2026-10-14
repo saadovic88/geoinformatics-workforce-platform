@@ -19,10 +19,19 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 import { canSubmitOwnLeave, isLeaveExempt, isLeaveObserver } from '../../utils/leavePolicy';
+import { supabase } from '../../lib/supabase';
 
 interface LeaveManagementProps {
   initialTab?: 'requests' | 'balances' | 'dual_approval' | 'wfh_field';
 }
+
+type ProxyCandidate = {
+  id: string;
+  nameEn: string;
+  nameAr: string;
+  jobTitleEn: string;
+  jobTitleAr: string;
+};
 
 export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = 'requests' }) => {
   const { currentUser, users } = useAuth();
@@ -47,6 +56,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const [handoverNotes, setHandoverNotes] = useState('');
   const [contactWhileAway, setContactWhileAway] = useState('');
   const [proxyEmployeeId, setProxyEmployeeId] = useState('');
+  const [proxyCandidates, setProxyCandidates] = useState<ProxyCandidate[]>([]);
+  const [isLoadingProxyCandidates, setIsLoadingProxyCandidates] = useState(Boolean(supabase));
   // Field site specifics
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -56,6 +67,47 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
 
   const canRequestLeave = canSubmitOwnLeave(currentUser);
+
+  // A proxy is a minimal, purpose-built directory: it exposes only the name
+  // and job title needed to hand over work, never colleagues' private data.
+  useEffect(() => {
+    const localCandidates = users
+      .filter((user) => user.id !== currentUser.id && user.status === 'active')
+      .map((user) => ({
+        id: user.id,
+        nameEn: user.nameEn,
+        nameAr: user.nameAr,
+        jobTitleEn: user.jobTitleEn,
+        jobTitleAr: user.jobTitleAr,
+      }));
+
+    if (!supabase) {
+      setProxyCandidates(localCandidates);
+      setIsLoadingProxyCandidates(false);
+      return;
+    }
+
+    let isCurrent = true;
+    setIsLoadingProxyCandidates(true);
+    void supabase.rpc('list_active_proxy_candidates').then(({ data, error }) => {
+      if (!isCurrent) return;
+      if (!error && Array.isArray(data)) {
+        setProxyCandidates(data.map((candidate) => ({
+          id: candidate.id,
+          nameEn: candidate.name_en,
+          nameAr: candidate.name_ar,
+          jobTitleEn: candidate.job_title_en,
+          jobTitleAr: candidate.job_title_ar,
+        })));
+      } else {
+        // Managers may already have their team loaded through normal RLS.
+        setProxyCandidates(localCandidates);
+      }
+      setIsLoadingProxyCandidates(false);
+    });
+
+    return () => { isCurrent = false; };
+  }, [currentUser.id, users]);
   const visibleLeaveRequests = leaveRequests.filter((request) =>
     request.employeeId === currentUser.id ||
     request.approvalSteps.some((step) => step.approverId === currentUser.id)
@@ -722,13 +774,22 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   onChange={(event) => setProxyEmployeeId(event.target.value)}
                   className="w-full rounded-lg border border-amber-200 bg-white p-2 text-xs text-slate-800"
                 >
-                  <option value="">{isRtl ? 'اختر الزميل المسؤول عن تغطية المهام' : 'Select the colleague covering your work'}</option>
-                  {users.filter((user) => user.id !== currentUser.id && user.status === 'active').map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {isRtl ? user.nameAr : user.nameEn} — {isRtl ? user.jobTitleAr : user.jobTitleEn}
+                  <option value="">
+                    {isLoadingProxyCandidates
+                      ? (isRtl ? 'جارٍ تحميل الزملاء...' : 'Loading colleagues...')
+                      : (isRtl ? 'اختر الزميل المسؤول عن تغطية المهام' : 'Select the colleague covering your work')}
+                  </option>
+                  {proxyCandidates.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {isRtl ? candidate.nameAr : candidate.nameEn} — {isRtl ? candidate.jobTitleAr : candidate.jobTitleEn}
                     </option>
                   ))}
                 </select>
+                {!isLoadingProxyCandidates && proxyCandidates.length === 0 && (
+                  <p className="text-[11px] text-rose-700">
+                    {isRtl ? 'لا توجد قائمة زملاء متاحة حالياً. يرجى تشغيل ترحيل دليل التغطية في Supabase.' : 'No colleagues are available yet. Run the proxy-directory migration in Supabase.'}
+                  </p>
+                )}
                 <p className="text-[11px] leading-relaxed text-amber-800">
                   {isRtl ? 'سيصل للزميل إشعار تكليف تلقائي لتغطية مهامك. لا يتطلب هذا التكليف قبولاً أو رفضاً منه.' : 'The selected colleague receives an automatic work-cover notification. This assignment does not require their acceptance or refusal.'}
                 </p>
