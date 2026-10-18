@@ -41,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(() => localStorage.getItem('geo_notification_sound') !== 'off');
   const knownUnreadIds = useRef<Set<string> | null>(null);
   const notificationAudioContext = useRef<AudioContext | null>(null);
+  const notificationAudioUnlocked = useRef(false);
 
   // Notifications are private to the intended recipient (or company-wide).
   const visibleNotifications = notifications.filter((n) => n.userId === currentUser.id || n.userId === 'all');
@@ -53,10 +54,34 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
     return notificationAudioContext.current;
   };
 
-  const playNotificationTone = () => {
+  // Chrome/Edge intentionally block audio created outside a user gesture.
+  // Unlock it once when the employee first touches the application so every
+  // later workflow alert can sound even while the notification menu is shut.
+  const unlockNotificationAudio = async () => {
     try {
       const context = getNotificationAudioContext();
-      if (context.state === 'suspended') void context.resume();
+      if (context.state === 'suspended') await context.resume();
+      notificationAudioUnlocked.current = context.state === 'running';
+    } catch {
+      notificationAudioUnlocked.current = false;
+    }
+  };
+
+  useEffect(() => {
+    const unlock = () => { void unlockNotificationAudio(); };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
+  const playNotificationTone = () => {
+    try {
+      if (!notificationAudioUnlocked.current) return;
+      const context = getNotificationAudioContext();
+      if (context.state !== 'running') return;
       const now = context.currentTime;
       [880, 1174].forEach((frequency, index) => {
         const oscillator = context.createOscillator();
@@ -79,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
     const nextValue = !notificationSoundEnabled;
     setNotificationSoundEnabled(nextValue);
     localStorage.setItem('geo_notification_sound', nextValue ? 'on' : 'off');
-    if (nextValue) playNotificationTone();
+    if (nextValue) void unlockNotificationAudio().then(playNotificationTone);
   };
 
   useEffect(() => {
@@ -269,7 +294,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           {/* Notifications Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setShowNotifMenu(!showNotifMenu)}
+              onClick={() => {
+                void unlockNotificationAudio();
+                setShowNotifMenu(!showNotifMenu);
+              }}
               className="relative grid h-10 w-10 place-items-center rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Notifications"
             >
