@@ -10,12 +10,13 @@ export const GeofenceSettingsView: React.FC = () => {
   const { geofenceZones, updateGeofenceZone, addGeofenceZone, deleteGeofenceZone } = useData();
   const { t, isRtl } = useLanguage();
   const { isFullAccessUser } = useAuth();
+  const activeZones = geofenceZones.filter((zone) => zone.isActive);
 
-  const [activeZoneId, setActiveZoneId] = useState<string>(geofenceZones[0]?.id || 'zone_cairo_hq');
+  const [activeZoneId, setActiveZoneId] = useState<string>(activeZones[0]?.id || 'zone_cairo_hq');
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Active zone editing state
-  const activeZone = geofenceZones.find((z) => z.id === activeZoneId) || geofenceZones[0];
+  const activeZone = activeZones.find((z) => z.id === activeZoneId) || activeZones[0];
   const [lat, setLat] = useState<number>(activeZone?.latitude || 30.0444);
   const [lon, setLon] = useState<number>(activeZone?.longitude || 31.2357);
   const [radius, setRadius] = useState<number>(activeZone?.radiusMeters || 500);
@@ -74,9 +75,9 @@ export const GeofenceSettingsView: React.FC = () => {
 
   const handleDeleteZone = () => {
     if (!activeZone || activeZone.isPrimary) return;
-    if (!window.confirm(`Delete the office zone "${activeZone.nameEn}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Deactivate the office zone "${activeZone.nameEn}"? Its record will be retained.`)) return;
     if (!deleteGeofenceZone(activeZone.id)) return;
-    const nextZone = geofenceZones.find((zone) => zone.id !== activeZone.id);
+    const nextZone = activeZones.find((zone) => zone.id !== activeZone.id);
     if (nextZone) handleSelectZone(nextZone);
   };
 
@@ -115,7 +116,7 @@ export const GeofenceSettingsView: React.FC = () => {
 
       {/* Zone Selector Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {geofenceZones.map((z) => (
+        {activeZones.map((z) => (
           <button
             key={z.id}
             onClick={() => handleSelectZone(z)}
@@ -264,7 +265,7 @@ export const GeofenceSettingsView: React.FC = () => {
                 className="mt-2 w-full py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-xs transition flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete this office zone
+                Deactivate this office zone
               </button>
             )}
           </div>

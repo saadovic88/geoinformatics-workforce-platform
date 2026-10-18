@@ -296,6 +296,8 @@ export interface WorkSchedule {
   breakDurationMinutes: number; // 60
   gracePeriodMinutes: number; // 15
   workingDays: number[]; // 0=Sunday, 1=Monday... in Egypt GIS week is Sun-Thu typically: [0, 1, 2, 3, 4]
+  /** Archived schedules remain in the company record but are no longer selectable. */
+  archivedAt?: string;
 }
 
 export interface Holiday {
@@ -304,6 +306,8 @@ export interface Holiday {
   nameAr: string;
   date: string;
   isRecurring: boolean;
+  /** Archived holidays remain in the company record but are not applied. */
+  archivedAt?: string;
 }
 
 export interface PermissionModuleAction {

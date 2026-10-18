@@ -1013,8 +1013,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isFullAccessUser) return;
     const task = tasks.find((item) => item.id === taskId);
     if (!task) return;
-    setTasks((prev) => prev.filter((item) => item.id !== taskId));
-    logAction('TASK_DELETED', 'Tasks', `Deleted task "${task.title}"`);
+    setTasks((prev) => prev.map((item) => item.id === taskId ? {
+      ...item,
+      status: 'cancelled',
+      activityLogs: [...item.activityLogs, {
+        id: `act_${Date.now()}`,
+        userId: currentUser?.id || 'system',
+        action: 'Task archived — retained in company records',
+        timestamp: new Date().toISOString(),
+      }],
+    } : item));
+    logAction('TASK_ARCHIVED', 'Tasks', `Archived task "${task.title}"; the record was retained.`);
   };
 
   const updateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
@@ -1164,11 +1173,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteGeofenceZone = (zoneId: string) => {
-    if (!isFullAccessUser || geofenceZones.length <= 1) return false;
+    if (!isFullAccessUser || geofenceZones.filter((item) => item.isActive).length <= 1) return false;
     const zone = geofenceZones.find((item) => item.id === zoneId);
     if (!zone || zone.isPrimary) return false;
-    setGeofenceZones((prev) => prev.filter((item) => item.id !== zoneId));
-    logAction('GEOFENCE_ZONE_DELETED', 'Settings', `Deleted geofence zone ${zone.nameEn}`);
+    setGeofenceZones((prev) => prev.map((item) => item.id === zoneId ? {
+      ...item,
+      isActive: false,
+    } : item));
+    logAction('GEOFENCE_ZONE_ARCHIVED', 'Settings', `Deactivated geofence zone ${zone.nameEn}; the record was retained.`);
     return true;
   };
 
@@ -1186,11 +1198,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteWorkSchedule = (scheduleId: string) => {
-    if (!isFullAccessUser || workSchedules.length <= 1) return false;
+    if (!isFullAccessUser || workSchedules.filter((item) => !item.archivedAt).length <= 1) return false;
     const schedule = workSchedules.find((item) => item.id === scheduleId);
     if (!schedule || users.some((user) => user.workScheduleId === scheduleId)) return false;
-    setWorkSchedules((prev) => prev.filter((item) => item.id !== scheduleId));
-    logAction('SCHEDULE_DELETED', 'Settings', `Deleted work schedule ${schedule.nameEn}`);
+    setWorkSchedules((prev) => prev.map((item) => item.id === scheduleId ? {
+      ...item,
+      archivedAt: new Date().toISOString(),
+    } : item));
+    logAction('SCHEDULE_ARCHIVED', 'Settings', `Archived work schedule ${schedule.nameEn}; the record was retained.`);
     return true;
   };
 
@@ -1214,8 +1229,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isFullAccessUser) return;
     const holiday = holidays.find((item) => item.id === holidayId);
     if (!holiday) return;
-    setHolidays((prev) => prev.filter((item) => item.id !== holidayId));
-    logAction('HOLIDAY_DELETED', 'Settings', `Deleted company holiday ${holiday.nameEn}`);
+    setHolidays((prev) => prev.map((item) => item.id === holidayId ? {
+      ...item,
+      archivedAt: new Date().toISOString(),
+    } : item));
+    logAction('HOLIDAY_ARCHIVED', 'Settings', `Archived company holiday ${holiday.nameEn}; the record was retained.`);
   };
 
   // Notifications
