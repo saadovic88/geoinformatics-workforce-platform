@@ -283,7 +283,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
       </div>
 
       {/* 4-Pill Weight Breakdown Formula Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-slate-700 flex items-center gap-1.5">
@@ -337,7 +337,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
       {mode === 'my' && (
         <div className="space-y-6">
           {/* Main KPI Card */}
-          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-2xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-xs font-mono font-bold border border-blue-400/30">
@@ -576,7 +576,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ initialMode = 'my' }
             defaultQuarter={selectedMonth <= 3 ? 'Q1' : selectedMonth <= 6 ? 'Q2' : selectedMonth <= 9 ? 'Q3' : 'Q4'}
           />
 
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-5">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs space-y-5">
             <div className="border-b border-slate-100 pb-3">
               <h2 className="text-base font-bold text-slate-900">{t('evaluateEmployee')}</h2>
               <p className="text-xs text-slate-500">

@@ -48,10 +48,10 @@ export const CheckOutSummaryModal: React.FC<CheckOutSummaryModalProps> = ({
   const isAlreadyCheckedOut = !!record?.checkOutTime;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-100 overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
+      <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[calc(100dvh-1.5rem)] border border-slate-100 overflow-y-auto text-slate-800">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 to-blue-950 text-white p-6">
+        <div className="bg-gradient-to-r from-slate-900 to-blue-950 text-white p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
@@ -75,7 +75,7 @@ export const CheckOutSummaryModal: React.FC<CheckOutSummaryModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5">
           {!isAlreadyCheckedOut ? (
             <div className="text-center py-4 space-y-3">
               <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
@@ -111,7 +111,7 @@ export const CheckOutSummaryModal: React.FC<CheckOutSummaryModalProps> = ({
               </div>
 
               {/* Metrics Grid */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 text-sm">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <span className="text-xs text-slate-500 block mb-1">{t('checkedInAt')}</span>
                   <span className="font-bold text-slate-800 text-base">{record?.checkInTime || '--:--'}</span>

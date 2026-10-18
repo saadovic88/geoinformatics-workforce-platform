@@ -641,8 +641,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
 
       {/* REQUEST LEAVE MODAL */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4 text-xs text-slate-800 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-4 sm:p-6 border border-slate-200 space-y-4 text-xs text-slate-800 max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-base">{t('requestLeaveBtn')}</h3>
               <button onClick={() => setShowNewModal(false)} className="text-slate-400 hover:text-slate-700">
@@ -673,7 +673,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
               </div>
 
               {/* Dynamic Balance Indicator */}
-              <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs">
+              <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl grid grid-cols-1 min-[420px]:grid-cols-3 gap-2 text-xs">
                 <div>
                   <span className="text-slate-500 block">{isRtl ? 'الرصيد المتاح:' : 'Available Balance:'}</span>
                   <span className="font-bold text-blue-900">{availableBal} {isRtl ? 'يوم' : 'days'}</span>
@@ -688,7 +688,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">{t('startDate')}</label>
                   <input
@@ -814,11 +814,11 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   : 'This request will be routed automatically to authorised reviewers for your department.'}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex flex-col-reverse min-[420px]:flex-row items-stretch min-[420px]:items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold"
+                  className="px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold"
                 >
                   {t('cancel')}
                 </button>

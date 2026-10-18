@@ -420,16 +420,16 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
       {/* TASK DETAIL DRAWER / MODAL */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden text-xs text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-6 animate-in fade-in">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden text-xs text-slate-800">
             {/* Header */}
-            <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-start justify-between gap-4">
+            <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 font-bold uppercase text-[10px]">
                   {selectedTask.projectName}
                 </span>
                 <h3 className="text-base font-bold text-slate-900">{selectedTask.title}</h3>
-                <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                   <span>Due: <b>{selectedTask.dueDate}</b></span>
                   <span>Estimated: <b>{selectedTask.estimatedHours}h</b></span>
                   <span>Logged: <b>{selectedTask.actualHours}h</b></span>
@@ -445,7 +445,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
             </div>
 
             {/* Content body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
               {/* Description */}
               <div className="space-y-1">
                 <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px]">Description</span>
@@ -509,7 +509,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               </div>
 
               {/* Status Action Controls */}
-              <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-wrap items-center justify-between gap-3">
+              <div className="p-3 sm:p-4 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center justify-between gap-3">
                 <div>
                   <span className="text-slate-500 block mb-0.5">Current Status</span>
                   <span className="font-bold text-blue-900 text-sm uppercase">
@@ -517,10 +517,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {isFullAccessUser && <button
                     onClick={() => {
-                      if (!window.confirm(`Delete task "${selectedTask.title}"? This action cannot be undone.`)) return;
+                      if (!window.confirm(`Archive task "${selectedTask.title}"? The task will be retained in company records.`)) return;
                       deleteTask(selectedTask.id);
                       setSelectedTask(null);
                     }}
@@ -619,8 +619,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
       {/* CREATE NEW TASK MODAL */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4 text-xs text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-4 sm:p-6 border border-slate-200 space-y-4 text-xs text-slate-800 max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-base">{t('createTask')}</h3>
               <button onClick={() => setShowNewModal(false)}>✕</button>
@@ -653,7 +653,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">{t('priority')}</label>
                   <select
@@ -705,7 +705,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex flex-col-reverse min-[420px]:flex-row items-stretch min-[420px]:items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}

@@ -322,8 +322,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
 
       {/* Exception Review Modal for HR/Admins */}
       {selectedException && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4 text-xs text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-6 border border-slate-200 space-y-4 text-xs text-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-amber-600" />
@@ -355,7 +355,7 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-col-reverse min-[420px]:flex-row items-stretch min-[420px]:items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => handleConfirmException('rejected')}
                 className="px-4 py-2 rounded-xl bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 transition"

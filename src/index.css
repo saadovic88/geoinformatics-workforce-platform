@@ -19,6 +19,7 @@
     transition-duration: 150ms;
     min-width: 320px;
     overflow-x: hidden;
+    overscroll-behavior-x: none;
   }
 
   [dir="rtl"] {
@@ -27,7 +28,33 @@
 }
 
 @media (max-width: 639px) {
+  html, body, #root { min-height: 100%; }
+
   input, select, textarea { font-size: 16px; }
+
+  /* Keep every control comfortably tappable and prevent iOS from cutting off
+     content behind the home indicator. */
+  button, [role="button"], select, input[type="date"], input[type="time"] {
+    min-height: 44px;
+  }
+
+  main {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Tables stay readable instead of compressing their columns into unusable
+     slivers. Their existing overflow wrappers provide the horizontal scroll. */
+  .overflow-x-auto > table { min-width: max-content; }
+
+  /* Charts use their own viewport on narrow devices. This avoids clipped SVG
+     labels while preserving the desktop chart layout. */
+  .recharts-responsive-container {
+    min-width: 320px;
+  }
+
+  [role="dialog"] {
+    max-height: calc(100dvh - 1.5rem);
+  }
 }
 
 /* Custom scrollbars */

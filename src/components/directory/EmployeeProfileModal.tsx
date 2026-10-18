@@ -107,10 +107,10 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-6 animate-in fade-in">
+      <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[92vh] flex flex-col border border-slate-200 overflow-hidden text-slate-800">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-4 sm:p-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="relative group shrink-0">
               <UserAvatar
@@ -193,7 +193,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
         </div>
 
         {/* Tab navigation */}
-        <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-4 overflow-x-auto">
+        <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-3 sm:px-4 overflow-x-auto whitespace-nowrap">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -215,7 +215,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
         </div>
 
         {/* Content body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
           {savedSuccess && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-600" />

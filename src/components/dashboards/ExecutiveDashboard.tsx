@@ -118,7 +118,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {/* Total Workforce */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200">
           <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-2">{isRtl ? 'إجمالي الموظفين' : 'Total Staff'}</span>
@@ -179,7 +179,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
         {/* Left 2 Cols: Department Health & Performance */}
         <div className="lg:col-span-2 space-y-6">
           {/* Department Breakdown */}
-          <div className="bg-white rounded-xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
+          <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <h2 className="font-bold text-slate-900 text-base tracking-tight">
                 {isRtl ? 'مؤشرات الأداء والحضور حسب الأقسام' : 'Department Workforce & KPI Benchmarks'}
@@ -220,7 +220,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
           </div>
 
           {/* Active Spatial Tasks Progress */}
-          <div className="bg-white rounded-xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
+          <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <h2 className="font-bold text-slate-900 text-base tracking-tight">
                 {isRtl ? 'أبرز مشاريع ومهام الاستشعار و GIS' : 'High-Priority GIS & Earth Observation Projects'}
@@ -262,7 +262,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
 
         {/* Right Col: Department-owned approvals queue */}
         <div className="space-y-6">
-          <div className="bg-white rounded-xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
+          <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />

@@ -274,8 +274,8 @@ export const GeofenceSettingsView: React.FC = () => {
 
       {/* Add Zone Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4 text-xs text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4 sm:p-6 border border-slate-200 space-y-4 text-xs text-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-sm">Add New Geofence Zone</h3>
               <button onClick={() => setShowAddModal(false)}>✕</button>
@@ -305,7 +305,7 @@ export const GeofenceSettingsView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2">
                 <div>
                   <label className="font-semibold block mb-1">Latitude</label>
                   <input
@@ -341,7 +341,7 @@ export const GeofenceSettingsView: React.FC = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex flex-col-reverse min-[420px]:flex-row items-stretch min-[420px]:items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}

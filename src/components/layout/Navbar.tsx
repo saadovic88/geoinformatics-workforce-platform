@@ -324,7 +324,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
               <div
                 className={`absolute ${
                   isRtl ? 'left-0' : 'right-0'
-                } mt-2 w-[calc(100vw-1.5rem)] max-w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in`}
+                } fixed inset-x-3 top-[4rem] mt-0 w-auto max-w-none bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in sm:absolute sm:top-auto sm:inset-x-auto sm:mt-2 sm:w-[calc(100vw-1.5rem)] sm:max-w-96`}
               >
                 <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
