@@ -58,6 +58,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const [proxyEmployeeId, setProxyEmployeeId] = useState('');
   const [proxyCandidates, setProxyCandidates] = useState<ProxyCandidate[]>([]);
   const [isLoadingProxyCandidates, setIsLoadingProxyCandidates] = useState(Boolean(supabase));
+  const [submissionError, setSubmissionError] = useState('');
   // Field site specifics
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -126,11 +127,15 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const availableBal = selectedBalance ? selectedBalance.remaining : 21;
   const balanceAfter = Math.max(0, availableBal - durationUnits);
 
-  const handleSubmitLeave = (e: React.FormEvent) => {
+  const handleSubmitLeave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canRequestLeave || !reason.trim() || !proxyEmployeeId) return;
+    if (!canRequestLeave || !reason.trim() || !proxyEmployeeId) {
+      setSubmissionError(isRtl ? 'أكمل سبب الطلب واختر زميل تغطية المهام.' : 'Add a reason and select a work-cover colleague.');
+      return;
+    }
 
-    createLeaveRequest({
+    setSubmissionError('');
+    const result = await createLeaveRequest({
       employeeId: currentUser.id,
       leaveType,
       startDate,
@@ -150,6 +155,11 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
             }
           : undefined,
     });
+
+    if (!result.ok) {
+      setSubmissionError(isRtl ? `تعذر إرسال الطلب: ${result.message || 'حاول مرة أخرى.'}` : `Could not submit the request: ${result.message || 'Please try again.'}`);
+      return;
+    }
 
     setShowNewModal(false);
     setReason('');
@@ -639,6 +649,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                 ✕
               </button>
             </div>
+
+            {submissionError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{submissionError}</div>}
 
             <form onSubmit={handleSubmitLeave} className="space-y-4">
               <div>

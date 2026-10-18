@@ -69,6 +69,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [newDueDate, setNewDueDate] = useState('2026-10-15');
   const [newEstimatedHours, setNewEstimatedHours] = useState(40);
   const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([currentUser.id]);
+  const [taskSubmissionError, setTaskSubmissionError] = useState('');
 
   // Comment input
   const [commentText, setCommentText] = useState('');
@@ -108,11 +109,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
     { status: 'overdue', label: isRtl ? 'متأخرة' : 'Overdue', color: 'border-rose-500' },
   ];
 
-  const handleCreateTaskSubmit = (e: React.FormEvent) => {
+  const handleCreateTaskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || !newAssigneeIds[0]) {
+      setTaskSubmissionError(isRtl ? 'أدخل عنوان المهمة واختر الموظف المكلّف.' : 'Enter a task title and choose an assignee.');
+      return;
+    }
 
-    createTask({
+    setTaskSubmissionError('');
+    const result = await createTask({
       title: newTitle,
       description: newDescription,
       projectName: newProject,
@@ -134,6 +139,11 @@ export const TasksView: React.FC<TasksViewProps> = ({
       ],
       attachments: [],
     });
+
+    if (!result.ok) {
+      setTaskSubmissionError(isRtl ? `تعذر إرسال المهمة: ${result.message || 'حاول مرة أخرى.'}` : `Could not send the task: ${result.message || 'Please try again.'}`);
+      return;
+    }
 
     setShowNewModal(false);
     setNewTitle('');
@@ -609,6 +619,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <h3 className="font-bold text-slate-900 text-base">{t('createTask')}</h3>
               <button onClick={() => setShowNewModal(false)}>✕</button>
             </div>
+
+            {taskSubmissionError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{taskSubmissionError}</div>}
 
             <form onSubmit={handleCreateTaskSubmit} className="space-y-4">
               <div>

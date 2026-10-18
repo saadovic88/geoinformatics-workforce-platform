@@ -55,12 +55,12 @@ interface DataContextType {
   // Leaves & Dual Approval
   leaveRequests: LeaveRequest[];
   leaveBalances: LeaveBalance[];
-  createLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => void;
+  createLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => Promise<{ ok: boolean; message?: string }>;
   handleLeaveApproval: (requestId: string, approverId: string, decision: 'approved' | 'rejected', notes?: string) => void;
   cancelLeaveRequest: (requestId: string) => void;
   // Tasks
   tasks: Task[];
-  createTask: (task: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => void;
+  createTask: (task: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => Promise<{ ok: boolean; message?: string }>;
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus) => void;
@@ -239,6 +239,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const persistDocumentNow = async (kind: CloudKind, document: { id: string; ownerId: string | null; payload: unknown }) => {
+    if (!supabase) return { ok: true };
+    if (!cloudReady) return { ok: false, message: 'Company data is still loading. Please try again in a moment.' };
+    const { error } = await supabase.from('company_data_documents').upsert(
+      { kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload },
+      { onConflict: 'kind,document_id' }
+    );
+    return error ? { ok: false, message: error.message } : { ok: true };
+  };
+
   // Supabase is the source of truth whenever configured. Browser storage is
   // retained strictly as an offline cache, never as the only company record.
   useEffect(() => {
@@ -277,6 +287,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     return () => { cancelled = true; };
   }, [currentUser?.id, isFullAccessUser]);
+
+  // Keep operational changes visible on other laptops/browsers without
+  // requiring a page refresh. Polling is used deliberately so this works even
+  // when Supabase Realtime has not been enabled for the table.
+  useEffect(() => {
+    if (!supabase || !currentUser?.id || !cloudReady) return;
+    const client = supabase;
+    let cancelled = false;
+    const refreshOperationalInbox = async () => {
+      const { data, error } = await client
+        .from('company_data_documents')
+        .select('kind, payload')
+        .in('kind', ['leave_request', 'task', 'notification']);
+      if (cancelled || error || !data) return;
+      const payloads = (kind: CloudKind) => data.filter((document) => document.kind === kind).map((document) => document.payload);
+      setLeaveRequests(payloads('leave_request') as LeaveRequest[]);
+      setTasks(payloads('task') as Task[]);
+      setNotifications(payloads('notification') as NotificationItem[]);
+    };
+    const interval = window.setInterval(() => { void refreshOperationalInbox(); }, 12000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [currentUser?.id, cloudReady]);
 
   // Seed data predates Supabase and references legacy employee IDs. Once the
   // real directory arrives, align every relation with the Auth/Profile UUID so
@@ -370,8 +402,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     localStorage.setItem('geo_notifs_data', JSON.stringify(notifications));
-    persistDocuments('notification', notifications.map((notification) => ({ id: notification.id, ownerId: notification.userId === 'all' ? null : notification.userId, payload: notification })));
-  }, [notifications, cloudReady]);
+    // Reading a notification is private. New cross-user notifications are
+    // written immediately by addNotification instead of being re-upserted by
+    // the sender during this background sync.
+    persistDocuments('notification', notifications
+      .filter((notification) => notification.userId === currentUser?.id || notification.userId === 'all')
+      .map((notification) => ({ id: notification.id, ownerId: notification.userId === 'all' ? null : notification.userId, payload: notification })));
+  }, [notifications, cloudReady, currentUser?.id]);
 
   useEffect(() => {
     localStorage.setItem('geo_audit_logs', JSON.stringify(auditLogs));
@@ -400,6 +437,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isRead: false,
     };
     setNotifications((prev) => [newItem, ...prev]);
+    // This immediate write is what delivers the alert to another signed-in
+    // employee; browser storage alone cannot cross devices or accounts.
+    void persistDocumentNow('notification', {
+      id: newItem.id,
+      ownerId: newItem.userId === 'all' ? null : newItem.userId,
+      payload: newItem,
+    }).then((result) => {
+      if (!result.ok) console.error('Could not deliver notification', result.message);
+    });
   };
 
   // Use the company's local calendar day. UTC dates can otherwise create a
@@ -616,14 +662,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('ATTENDANCE_EXCEPTION_RESOLVED', 'Attendance', `Record ${recordId} was ${decision} by ${currentUser?.nameEn}`);
   };
 
-  // Leave workflow: every request has exactly one accountable department owner.
-  // There is deliberately no company-wide approval override in this workflow.
-  const createLeaveRequest = (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => {
-    if (!currentUser || req.employeeId !== currentUser.id || !canSubmitOwnLeave(currentUser)) return;
-    const requesterId = req.employeeId;
-    const requester = users.find((user) => user.id === requesterId);
-    const approvers = getLeaveApprovers(requester, users);
-    if (!requester || !approvers.length || !req.proxyEmployeeId || req.proxyEmployeeId === requesterId) return;
+  // The approver route is resolved by Supabase. This gives a regular employee
+  // the correct signatories without granting access to private staff profiles.
+  const createLeaveRequest = async (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => {
+    if (!currentUser || req.employeeId !== currentUser.id || !canSubmitOwnLeave(currentUser)) {
+      return { ok: false, message: 'You are not allowed to submit this request.' };
+    }
+    const requester = users.find((user) => user.id === req.employeeId) || currentUser;
+    let approvers = getLeaveApprovers(requester, users).map((user) => ({ id: user.id, nameEn: user.nameEn }));
+    if (supabase) {
+      const { data, error } = await supabase.rpc('get_leave_approvers_for_current_user');
+      if (!error && Array.isArray(data)) {
+        approvers = data.map((approver) => ({ id: approver.id as string, nameEn: approver.name_en as string }));
+      } else if (!approvers.length) {
+        return { ok: false, message: error?.message || 'Could not load the approval route.' };
+      }
+    }
+    if (!approvers.length || !req.proxyEmployeeId || req.proxyEmployeeId === requester.id) {
+      return { ok: false, message: 'Select a valid colleague and wait for the approval route to load.' };
+    }
 
     const newRequest: LeaveRequest = {
       ...req,
@@ -632,49 +689,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'pending_approval',
       approvalSteps: approvers.map((approver) => ({ approverId: approver.id, approverName: approver.nameEn, status: 'pending' })),
     };
+    const persisted = await persistDocumentNow('leave_request', { id: newRequest.id, ownerId: requester.id, payload: newRequest });
+    if (!persisted.ok) return persisted;
 
     setLeaveRequests((prev) => [newRequest, ...prev]);
+    setLeaveBalances((prev) => prev.map((balance) =>
+      balance.employeeId === req.employeeId && balance.leaveType === req.leaveType
+        ? { ...balance, pending: balance.pending + req.durationUnits }
+        : balance
+    ));
 
-    // Update pending balance
-    setLeaveBalances((prev) =>
-      prev.map((bal) => {
-        if (bal.employeeId === req.employeeId && bal.leaveType === req.leaveType) {
-          return {
-            ...bal,
-            pending: bal.pending + req.durationUnits,
-          };
-        }
-        return bal;
-      })
-    );
-
-    // Every required signer receives a direct, actionable alert.
     approvers.forEach((approver) => addNotification({
       userId: approver.id,
       titleEn: 'Leave Request Awaiting Your Approval',
       titleAr: 'طلب إجازة جديد بانتظار اعتمادكم',
-      messageEn: `${requester?.nameEn || 'An employee'} submitted a ${req.leaveType} request (${req.durationUnits} ${req.unit}).`,
+      messageEn: `${requester.nameEn} submitted a ${req.leaveType} request (${req.durationUnits} ${req.unit}).`,
       messageAr: `تم تقديم طلب ${req.leaveType} لمدة ${req.durationUnits} ${req.unit} وبانتظار اعتمادكم.`,
-      type: 'leave',
-      priority: 'high',
-      actionUrl: `leave:${newRequest.id}`,
+      type: 'leave', priority: 'high', actionUrl: `leave:${newRequest.id}`,
     }));
-
-    const proxy = users.find((user) => user.id === req.proxyEmployeeId);
-    if (proxy) {
-      addNotification({
-        userId: proxy.id,
-        titleEn: 'Leave Cover Assignment',
-        titleAr: 'تكليف بتغطية مهام زميل',
-        messageEn: `${requester.nameEn} nominated you to cover assigned work during ${req.startDate} to ${req.endDate}. This is an assignment notice; no response is required.`,
-        messageAr: `تم تكليفك بتغطية مهام ${requester.nameAr} خلال الفترة من ${req.startDate} إلى ${req.endDate}. هذا إشعار تكليف ولا يتطلب منك قبولاً أو رفضاً.`,
-        type: 'leave',
-        priority: 'high',
-        actionUrl: 'tasks_my',
-      });
-    }
-
+    addNotification({
+      userId: req.proxyEmployeeId,
+      titleEn: 'Leave Cover Assignment',
+      titleAr: 'تكليف بتغطية مهام زميل',
+      messageEn: `${requester.nameEn} nominated you to cover assigned work during ${req.startDate} to ${req.endDate}. This is an assignment notice; no response is required.`,
+      messageAr: `تم تكليفك بتغطية مهام ${requester.nameAr} خلال الفترة من ${req.startDate} إلى ${req.endDate}. هذا إشعار تكليف ولا يتطلب منك قبولاً أو رفضاً.`,
+      type: 'leave', priority: 'high', actionUrl: 'tasks_my',
+    });
     logAction('LEAVE_REQUESTED', 'Leaves', `Request for ${req.durationUnits} ${req.unit} of ${req.leaveType} created`);
+    return { ok: true };
   };
 
   const handleLeaveApproval = (
@@ -910,8 +952,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Tasks Management
-  const createTask = (taskData: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => {
-    if (!isFullAccessUser) return;
+  const createTask = async (taskData: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => {
+    if (!isFullAccessUser) return { ok: false, message: 'Only authorised administrators can create tasks.' };
     const newTask: Task = {
       ...taskData,
       id: `tsk_${Date.now()}`,
@@ -925,6 +967,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       ],
     };
+
+    const persisted = await persistDocumentNow('task', {
+      id: newTask.id,
+      ownerId: newTask.creatorId,
+      payload: newTask,
+    });
+    if (!persisted.ok) return persisted;
 
     setTasks((prev) => [newTask, ...prev]);
 
@@ -943,6 +992,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     logAction('TASK_CREATED', 'Tasks', `Created task "${taskData.title}"`);
+    return { ok: true };
   };
 
   const updateTask = (updatedTask: Task) => {
