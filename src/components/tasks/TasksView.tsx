@@ -78,13 +78,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewScore, setReviewScore] = useState<number>(95);
   const [reviewNotes, setReviewNotes] = useState<string>('');
 
-  const isManager = isFullAccessUser;
+  const directReports = users.filter((user) => user.managerId === currentUser.id && user.status === 'active');
+  const assignableUsers = isFullAccessUser ? users.filter((user) => user.status === 'active') : directReports;
+  const canAssignTasks = isFullAccessUser || directReports.length > 0;
+  const isManager = canAssignTasks;
   const canConfirmCompletion = isFullAccessUser;
   const canViewTeamTask = (task: Task) =>
     isFullAccessUser ||
-    ['ceo', 'co_founder'].includes(currentUser.roleId) ||
     task.creatorId === currentUser.id ||
-    task.departmentId === currentUser.departmentId;
+    task.assigneeIds.some((assigneeId) => directReports.some((member) => member.id === assigneeId));
 
   const filteredTasks = tasks.filter((task) => {
     const isMyTask = task.assigneeIds.includes(currentUser.id);
@@ -226,8 +228,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
             </button>
           </div>
 
-          {isFullAccessUser && <button
-            onClick={() => setShowNewModal(true)}
+          {canAssignTasks && <button
+            onClick={() => {
+              setTaskSubmissionError('');
+              setNewAssigneeIds([assignableUsers[0]?.id || '']);
+              setShowNewModal(true);
+            }}
             className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -680,7 +686,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   onChange={(e) => setNewAssigneeIds([e.target.value])}
                   className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs"
                 >
-                  {users.map((u) => (
+                  {assignableUsers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.nameEn} ({u.jobTitleEn})
                     </option>

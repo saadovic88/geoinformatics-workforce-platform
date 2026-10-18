@@ -953,9 +953,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Tasks Management
   const createTask = async (taskData: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => {
-    if (!isFullAccessUser) return { ok: false, message: 'Only authorised administrators can create tasks.' };
+    const directReportIds = new Set(users
+      .filter((user) => user.managerId === currentUser?.id && user.status === 'active')
+      .map((user) => user.id));
+    const isTeamLead = directReportIds.size > 0;
+    const canCreateForAssignees = isFullAccessUser || (isTeamLead && taskData.assigneeIds.every((id) => directReportIds.has(id)));
+    if (!canCreateForAssignees) {
+      return { ok: false, message: 'You can assign tasks only to your direct team members.' };
+    }
     const newTask: Task = {
       ...taskData,
+      creatorId: currentUser.id,
       id: `tsk_${Date.now()}`,
       comments: [],
       activityLogs: [
