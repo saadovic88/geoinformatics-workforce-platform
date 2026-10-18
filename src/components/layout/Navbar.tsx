@@ -18,10 +18,12 @@ import {
   Moon,
   Volume2,
   VolumeX,
+  BellRing,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { CompanyLogo } from '../common/CompanyLogo';
 import { UserAvatar } from '../common/UserAvatar';
+import { enablePushNotifications, getPushPermission, isPushSupported } from '../../lib/pushNotifications';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -39,6 +41,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showSwitchMenu, setShowSwitchMenu] = useState(false);
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(() => localStorage.getItem('geo_notification_sound') !== 'off');
+  const [pushPermission, setPushPermission] = useState(getPushPermission);
+  const [pushStatus, setPushStatus] = useState<string | null>(null);
   const knownUnreadIds = useRef<Set<string> | null>(null);
   const notificationAudioContext = useRef<AudioContext | null>(null);
   const notificationAudioUnlocked = useRef(false);
@@ -105,6 +109,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
     setNotificationSoundEnabled(nextValue);
     localStorage.setItem('geo_notification_sound', nextValue ? 'on' : 'off');
     if (nextValue) void unlockNotificationAudio().then(playNotificationTone);
+  };
+
+  const enableDeviceNotifications = async () => {
+    const result = await enablePushNotifications(currentUser.id);
+    setPushPermission(getPushPermission());
+    setPushStatus(result.message);
+    window.setTimeout(() => setPushStatus(null), 3500);
   };
 
   useEffect(() => {
@@ -325,6 +336,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    {isPushSupported() && pushPermission !== 'granted' && (
+                      <button
+                        type="button"
+                        onClick={() => { void enableDeviceNotifications(); }}
+                        className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-300 transition"
+                        title={isRtl ? 'تفعيل إشعارات الجهاز' : 'Enable device notifications'}
+                        aria-label="Enable device notifications"
+                      >
+                        <BellRing className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={toggleNotificationSound}
@@ -344,6 +366,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                     )}
                   </div>
                 </div>
+
+                {pushStatus && <p className="mx-4 mt-2 rounded-lg bg-blue-50 px-2.5 py-2 text-[11px] font-medium text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">{pushStatus}</p>}
 
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                   {visibleNotifications.length === 0 ? (

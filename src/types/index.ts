@@ -273,6 +273,8 @@ export interface NotificationItem {
   isRead: boolean;
   createdAt: string;
   actionUrl?: string;
+  /** Workflow actor that created the notification; used to authorize push delivery. */
+  createdBy?: string;
 }
 
 export interface AuditLogItem {

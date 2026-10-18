@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -32,6 +32,33 @@ const MainAppContent: React.FC = () => {
   const [manualCheckoutModal, setManualCheckoutModal] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState<{ page: ActivePage; itemId?: string } | null>(null);
   const mainViewportRef = useRef<HTMLElement>(null);
+
+  const handleNotificationAction = useCallback((actionUrl?: string) => {
+    const [kind, itemId] = (actionUrl || '').split(':');
+    const page: ActivePage = kind === 'task' || kind === 'tasks' ? 'tasks_my'
+      : kind === 'leave' || kind === 'leaves' ? 'leaves_requests'
+      : kind === 'attendance' ? 'attendance_my'
+      : kind === 'kpi' ? 'kpi_my'
+      : 'dashboard';
+    setNotificationTarget({ page, itemId });
+    setActivePage(page);
+  }, []);
+
+  // A system notification may launch a fresh PWA window or focus an existing
+  // one. In both cases, navigate directly to the corresponding work item.
+  useEffect(() => {
+    const openedFromPush = new URLSearchParams(window.location.search).get('notification');
+    if (openedFromPush) {
+      handleNotificationAction(openedFromPush);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent<{ type?: string; actionUrl?: string }>) => {
+      if (event.data?.type === 'OPEN_NOTIFICATION_ACTION') handleNotificationAction(event.data.actionUrl);
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [handleNotificationAction]);
 
   // A navigation action should always reveal the new page header. Without this,
   // an administrator who navigates while scrolled down can appear to remain on
@@ -148,16 +175,7 @@ const MainAppContent: React.FC = () => {
         <Navbar
           onToggleSidebar={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
           onOpenCheckOutModal={() => setManualCheckoutModal(true)}
-          onNotificationAction={(actionUrl) => {
-            const [kind, itemId] = (actionUrl || '').split(':');
-            const page: ActivePage = kind === 'task' || kind === 'tasks' ? 'tasks_my'
-              : kind === 'leave' || kind === 'leaves' ? 'leaves_requests'
-              : kind === 'attendance' ? 'attendance_my'
-              : kind === 'kpi' ? 'kpi_my'
-              : 'dashboard';
-            setNotificationTarget({ page, itemId });
-            setActivePage(page);
-          }}
+          onNotificationAction={handleNotificationAction}
         />
 
         {/* Scrollable Viewport */}

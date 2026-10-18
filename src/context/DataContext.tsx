@@ -14,6 +14,7 @@ import {
   AuditLogItem,
   User,
 } from '../types';
+import { dispatchPushNotification } from '../lib/pushNotifications';
 import {
   INITIAL_ATTENDANCE,
   INITIAL_GEOFENCE_ZONES,
@@ -435,6 +436,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString(),
       isRead: false,
+      createdBy: currentUser?.id,
     };
     setNotifications((prev) => [newItem, ...prev]);
     // This immediate write is what delivers the alert to another signed-in
@@ -444,7 +446,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ownerId: newItem.userId === 'all' ? null : newItem.userId,
       payload: newItem,
     }).then((result) => {
-      if (!result.ok) console.error('Could not deliver notification', result.message);
+      if (!result.ok) {
+        console.error('Could not deliver notification', result.message);
+        return;
+      }
+      dispatchPushNotification(newItem);
     });
   };
 
