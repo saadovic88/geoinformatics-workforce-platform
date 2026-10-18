@@ -19,6 +19,7 @@ import {
   Volume2,
   VolumeX,
   BellRing,
+  RefreshCw,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { CompanyLogo } from '../common/CompanyLogo';
@@ -33,7 +34,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutModal, onNotificationAction }) => {
   const { currentUser, users, logout } = useAuth();
-  const { todayAttendance, checkIn, notifications, markNotificationRead, markAllNotificationsRead } = useData();
+  const { todayAttendance, checkIn, notifications, markNotificationRead, markAllNotificationsRead, refreshCompanyData, isSyncing, lastSyncedAt } = useData();
   const { language, setLanguage, t, isRtl } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
 
@@ -43,6 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(() => localStorage.getItem('geo_notification_sound') !== 'off');
   const [pushPermission, setPushPermission] = useState(getPushPermission);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const knownUnreadIds = useRef<Set<string> | null>(null);
   const notificationAudioContext = useRef<AudioContext | null>(null);
   const notificationAudioUnlocked = useRef(false);
@@ -116,6 +118,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
     setPushPermission(getPushPermission());
     setPushStatus(result.message);
     window.setTimeout(() => setPushStatus(null), 3500);
+  };
+
+  const syncNow = async () => {
+    const result = await refreshCompanyData();
+    setSyncStatus(result.ok
+      ? (isRtl ? 'تم تحديث البيانات الآن' : 'Data is up to date')
+      : (isRtl ? `تعذر التحديث: ${result.message || 'حاول مرة أخرى'}` : `Sync failed: ${result.message || 'Please try again'}`));
+    window.setTimeout(() => setSyncStatus(null), 3200);
   };
 
   useEffect(() => {
@@ -412,6 +422,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { void syncNow(); }}
+              disabled={isSyncing}
+              className="grid h-10 w-10 place-items-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-blue-700 disabled:cursor-wait disabled:opacity-60 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title={isRtl ? 'تحديث البيانات الآن' : 'Sync latest data'}
+              aria-label={isRtl ? 'تحديث البيانات الآن' : 'Sync latest data'}
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            </button>
+            {syncStatus && <div className={`absolute top-12 z-[60] w-56 rounded-xl border px-3 py-2 text-[11px] font-medium shadow-lg ${isRtl ? 'left-0 text-right' : 'right-0 text-left'} ${syncStatus.startsWith('Sync failed') || syncStatus.startsWith('تعذر') ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{syncStatus}{lastSyncedAt && !isSyncing && <span className="mt-0.5 block text-[10px] opacity-70">{new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}</div>}
           </div>
 
           {/* User Profile Pill & Signout */}

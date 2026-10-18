@@ -77,6 +77,10 @@ interface DataContextType {
   markAllNotificationsRead: () => void;
   auditLogs: AuditLogItem[];
   logAction: (action: string, module: string, details: string) => void;
+  /** Pull the latest authorized company data immediately, without a full page reload. */
+  refreshCompanyData: () => Promise<{ ok: boolean; message?: string }>;
+  isSyncing: boolean;
+  lastSyncedAt?: string;
   // Automations
   runAutomations: () => string[];
   lastAutomationRun: string;
@@ -87,7 +91,10 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, users, isFullAccessUser } = useAuth();
   const didRemapEmployeeIds = useRef(false);
+  const pendingNotificationDeliveries = useRef<NotificationItem[]>([]);
   const [cloudReady, setCloudReady] = useState(() => !supabase);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>();
 
   // Helper to migrate employee IDs from legacy seed data
   const mapLegacyId = (id: string): string => {
@@ -250,43 +257,62 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return error ? { ok: false, message: error.message } : { ok: true };
   };
 
+  const retryPendingNotificationDeliveries = async () => {
+    const pending = [...pendingNotificationDeliveries.current];
+    if (!pending.length) return;
+    const results = await Promise.all(pending.map(async (notification) => ({
+      notification,
+      result: await persistDocumentNow('notification', {
+        id: notification.id,
+        ownerId: notification.userId === 'all' ? null : notification.userId,
+        payload: notification,
+      }),
+    })));
+    pendingNotificationDeliveries.current = results
+      .filter(({ result }) => !result.ok)
+      .map(({ notification }) => notification);
+    results.filter(({ result }) => result.ok).forEach(({ notification }) => dispatchPushNotification(notification));
+  };
+
+  const refreshCompanyData = async (): Promise<{ ok: boolean; message?: string }> => {
+    if (!supabase || !currentUser?.id) return { ok: true };
+    setIsSyncing(true);
+    const { data, error } = await supabase
+      .from('company_data_documents')
+      .select('kind, document_id, owner_id, payload');
+    setIsSyncing(false);
+    if (error) {
+      console.error('Could not refresh central company data from Supabase', error.message);
+      setCloudReady(true);
+      return { ok: false, message: error.message };
+    }
+    const docs = (data || []) as CloudDocument[];
+    const byKind = (kind: CloudKind) => docs.filter((document) => document.kind === kind).map((document) => document.payload);
+    const shouldHydrate = docs.length > 0 || !isFullAccessUser;
+    if (shouldHydrate) {
+      setAttendanceRecords(byKind('attendance') as AttendanceRecord[]);
+      setGeofenceZones(byKind('zone') as GeofenceZone[]);
+      setWorkSchedules(byKind('schedule') as WorkSchedule[]);
+      setHolidays(byKind('holiday') as Holiday[]);
+      setLeaveRequests(byKind('leave_request') as LeaveRequest[]);
+      setLeaveBalances(byKind('leave_balance') as LeaveBalance[]);
+      setTasks(byKind('task') as Task[]);
+      setKpiRecords(byKind('kpi') as MonthlyKPIRecord[]);
+      setNotifications(byKind('notification') as NotificationItem[]);
+      setAuditLogs(byKind('audit') as AuditLogItem[]);
+    }
+    setCloudReady(true);
+    setLastSyncedAt(new Date().toISOString());
+    await retryPendingNotificationDeliveries();
+    return { ok: true };
+  };
+
   // Supabase is the source of truth whenever configured. Browser storage is
   // retained strictly as an offline cache, never as the only company record.
   useEffect(() => {
     if (!supabase || !currentUser?.id) return;
-    let cancelled = false;
     setCloudReady(false);
-    void supabase
-      .from('company_data_documents')
-      .select('kind, document_id, owner_id, payload')
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) {
-          console.error('Could not load central company data from Supabase', error.message);
-          setCloudReady(true);
-          return;
-        }
-        const docs = (data || []) as CloudDocument[];
-        const byKind = (kind: CloudKind) => docs.filter((document) => document.kind === kind).map((document) => document.payload);
-        // On a newly provisioned project the first named administrator uploads
-        // the existing company seed. Every other device replaces its browser
-        // cache with the authorised central records, including an empty list.
-        const shouldHydrate = docs.length > 0 || !isFullAccessUser;
-        if (shouldHydrate) {
-          setAttendanceRecords(byKind('attendance') as AttendanceRecord[]);
-          setGeofenceZones(byKind('zone') as GeofenceZone[]);
-          setWorkSchedules(byKind('schedule') as WorkSchedule[]);
-          setHolidays(byKind('holiday') as Holiday[]);
-          setLeaveRequests(byKind('leave_request') as LeaveRequest[]);
-          setLeaveBalances(byKind('leave_balance') as LeaveBalance[]);
-          setTasks(byKind('task') as Task[]);
-          setKpiRecords(byKind('kpi') as MonthlyKPIRecord[]);
-          setNotifications(byKind('notification') as NotificationItem[]);
-          setAuditLogs(byKind('audit') as AuditLogItem[]);
-        }
-        setCloudReady(true);
-      });
-    return () => { cancelled = true; };
+    void refreshCompanyData();
   }, [currentUser?.id, isFullAccessUser]);
 
   // Keep operational changes visible on other laptops/browsers without
@@ -307,8 +333,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTasks(payloads('task') as Task[]);
       setNotifications(payloads('notification') as NotificationItem[]);
     };
-    const interval = window.setInterval(() => { void refreshOperationalInbox(); }, 12000);
-    return () => { cancelled = true; window.clearInterval(interval); };
+    const interval = window.setInterval(() => { void refreshOperationalInbox(); }, 6000);
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible') void refreshCompanyData();
+    };
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    return () => { cancelled = true; window.clearInterval(interval); document.removeEventListener('visibilitychange', refreshOnReturn); };
   }, [currentUser?.id, cloudReady]);
 
   // Seed data predates Supabase and references legacy employee IDs. Once the
@@ -430,7 +460,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  const addNotification = (notif: Omit<NotificationItem, 'id' | 'createdAt' | 'isRead'>) => {
+  const addNotification = async (notif: Omit<NotificationItem, 'id' | 'createdAt' | 'isRead'>) => {
     const newItem: NotificationItem = {
       ...notif,
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -441,17 +471,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications((prev) => [newItem, ...prev]);
     // This immediate write is what delivers the alert to another signed-in
     // employee; browser storage alone cannot cross devices or accounts.
-    void persistDocumentNow('notification', {
+    const result = await persistDocumentNow('notification', {
       id: newItem.id,
       ownerId: newItem.userId === 'all' ? null : newItem.userId,
       payload: newItem,
-    }).then((result) => {
-      if (!result.ok) {
-        console.error('Could not deliver notification', result.message);
-        return;
-      }
-      dispatchPushNotification(newItem);
     });
+    if (!result.ok) {
+      console.error('Could not deliver notification', result.message);
+      pendingNotificationDeliveries.current = [...pendingNotificationDeliveries.current.filter((item) => item.id !== newItem.id), newItem];
+      return result;
+    }
+    dispatchPushNotification(newItem);
+    return result;
   };
 
   // Use the company's local calendar day. UTC dates can otherwise create a
@@ -991,8 +1022,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setTasks((prev) => [newTask, ...prev]);
 
-    // Notify assignees
-    taskData.assigneeIds.forEach((uid) => {
+    // Confirm notification delivery before reporting success to the manager.
+    // A failed delivery remains queued and the global Sync button retries it.
+    const deliveries = await Promise.all(taskData.assigneeIds.map((uid) =>
       addNotification({
         userId: uid,
         titleEn: 'New GIS Task Assigned',
@@ -1002,11 +1034,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'task',
         priority: taskData.priority === 'critical' || taskData.priority === 'high' ? 'high' : 'medium',
         actionUrl: `task:${newTask.id}`,
-      });
-    });
+      })
+    ));
 
     logAction('TASK_CREATED', 'Tasks', `Created task "${taskData.title}"`);
-    return { ok: true };
+    const failedDeliveries = deliveries.filter((delivery) => !delivery.ok);
+    return failedDeliveries.length
+      ? { ok: true, message: 'The task was saved. One or more alerts are queued for retry; use Sync if they do not arrive.' }
+      : { ok: true, message: 'Task saved and delivered to the assigned employee.' };
   };
 
   const updateTask = (updatedTask: Task) => {
@@ -1335,6 +1370,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         markAllNotificationsRead,
         auditLogs,
         logAction,
+        refreshCompanyData,
+        isSyncing,
+        lastSyncedAt,
         runAutomations,
         lastAutomationRun,
       }}

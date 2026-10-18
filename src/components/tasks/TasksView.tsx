@@ -22,6 +22,7 @@ import {
   Sparkles,
   BarChart2,
   Trash2,
+  LoaderCircle,
 } from 'lucide-react';
 import { TaskPerformanceInsights } from './TaskPerformanceInsights';
 
@@ -70,6 +71,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [newEstimatedHours, setNewEstimatedHours] = useState(40);
   const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([currentUser.id]);
   const [taskSubmissionError, setTaskSubmissionError] = useState('');
+  const [taskSubmissionSuccess, setTaskSubmissionSuccess] = useState('');
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
   // Comment input
   const [commentText, setCommentText] = useState('');
@@ -119,6 +122,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
     }
 
     setTaskSubmissionError('');
+    setTaskSubmissionSuccess('');
+    setIsSubmittingTask(true);
     const result = await createTask({
       title: newTitle,
       description: newDescription,
@@ -142,15 +147,21 @@ export const TasksView: React.FC<TasksViewProps> = ({
       attachments: [],
     });
 
+    setIsSubmittingTask(false);
     if (!result.ok) {
       setTaskSubmissionError(isRtl ? `تعذر إرسال المهمة: ${result.message || 'حاول مرة أخرى.'}` : `Could not send the task: ${result.message || 'Please try again.'}`);
       return;
     }
 
-    setShowNewModal(false);
+    setTaskSubmissionSuccess(result.message || (isRtl ? 'تم حفظ المهمة وإرسالها.' : 'Task saved and delivered.'));
+    setScope('team');
     setNewTitle('');
     setNewProject('');
     setNewDescription('');
+    window.setTimeout(() => {
+      setShowNewModal(false);
+      setTaskSubmissionSuccess('');
+    }, 900);
   };
 
   const handleAddComment = () => {
@@ -231,6 +242,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
           {canAssignTasks && <button
             onClick={() => {
               setTaskSubmissionError('');
+              setTaskSubmissionSuccess('');
               setNewAssigneeIds([assignableUsers[0]?.id || '']);
               setShowNewModal(true);
             }}
@@ -627,6 +639,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
             </div>
 
             {taskSubmissionError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{taskSubmissionError}</div>}
+            {taskSubmissionSuccess && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{taskSubmissionSuccess}</div>}
 
             <form onSubmit={handleCreateTaskSubmit} className="space-y-4">
               <div>
@@ -715,9 +728,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmittingTask}
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
                 >
-                  {t('createTask')}
+                  {isSubmittingTask ? <span className="flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />{isRtl ? 'جارٍ الإرسال...' : 'Sending...'}</span> : t('createTask')}
                 </button>
               </div>
             </form>
