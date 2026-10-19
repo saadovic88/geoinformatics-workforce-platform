@@ -174,13 +174,13 @@ export const TasksView: React.FC<TasksViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <CheckSquare className="w-5 h-5 text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-900">{t('tasksTitle')}</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900">{t('tasksTitle')}</h1>
             <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
               {filteredTasks.length} {isRtl ? 'مهام' : 'Tasks'}
             </span>
@@ -192,7 +192,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Scope Toggle */}
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
             <button
@@ -246,7 +246,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               setNewAssigneeIds([assignableUsers[0]?.id || '']);
               setShowNewModal(true);
             }}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2"
+            className="min-w-0 flex-1 justify-center px-3 sm:flex-none sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t('createTask')}</span>
@@ -255,7 +255,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="relative flex-1 sm:max-w-xs">
           <Search className={`w-4 h-4 text-slate-400 absolute top-2.5 ${isRtl ? 'right-3' : 'left-3'}`} />
           <input
@@ -294,14 +294,19 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
       {/* VIEW: KANBAN BOARD */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
+          {filteredTasks.length === 0 && (
+            <div className="md:hidden rounded-xl border border-dashed border-slate-300 bg-white px-4 py-7 text-center text-xs text-slate-500">
+              {isRtl ? 'لا توجد مهام في هذا العرض.' : 'No tasks in this view.'}
+            </div>
+          )}
           {columns.map((col) => {
             const colTasks = filteredTasks.filter((t) => t.status === col.status);
 
             return (
               <div
                 key={col.status}
-                className="bg-slate-100/70 rounded-2xl p-3 border border-slate-200 flex flex-col space-y-3 min-h-[500px]"
+                className={`bg-slate-100/70 rounded-2xl p-2.5 sm:p-3 border border-slate-200 flex flex-col space-y-2 sm:space-y-3 min-h-0 md:min-h-[500px] ${colTasks.length === 0 ? 'hidden md:flex' : ''}`}
               >
                 <div className="flex items-center justify-between px-1">
                   <span className="font-bold text-slate-800 text-xs">{col.label}</span>
@@ -315,7 +320,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     <div
                       key={task.id}
                       onClick={() => setSelectedTask(task)}
-                      className="bg-white rounded-xl p-3.5 border border-slate-200 hover:border-blue-400 hover:shadow-md transition cursor-pointer space-y-2 text-xs"
+                      className="bg-white rounded-xl p-3 border border-slate-200 hover:border-blue-400 hover:shadow-md transition cursor-pointer space-y-2 text-xs"
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span

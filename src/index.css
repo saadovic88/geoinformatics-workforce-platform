@@ -55,6 +55,47 @@
   [role="dialog"] {
     max-height: calc(100dvh - 1.5rem);
   }
+
+  /* Mobile is an operational view, not a scaled desktop page.  Keep the
+     information density high while preserving the 44px touch targets above. */
+  main {
+    padding: .75rem;
+  }
+
+  main .rounded-2xl {
+    border-radius: 1rem;
+  }
+
+  /* Most views share Tailwind's spacing utilities.  These mobile-only
+     overrides remove the large empty gaps without changing desktop layouts. */
+  main .p-5 { padding: .875rem; }
+  main .p-6 { padding: 1rem; }
+  main .gap-6 { gap: .875rem; }
+  main .gap-5 { gap: .75rem; }
+  main .gap-4 { gap: .75rem; }
+  main .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: .875rem; }
+  main .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
+  main .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
+
+  /* Dense summaries remain legible at phone width; long labels may wrap
+     instead of forcing the entire screen to scroll horizontally. */
+  main h1 { line-height: 1.25; }
+  main .text-3xl { font-size: 1.65rem; }
+  main .text-2xl { font-size: 1.4rem; }
+  main .text-xl { font-size: 1.15rem; }
+  main .min-h-\[500px\] { min-height: 0; }
+
+  /* A compact sheet gives forms enough room for content and keeps its action
+     area reachable above the iPhone home indicator. */
+  [role="dialog"] {
+    border-radius: 1rem;
+  }
+
+  [role="dialog"] input,
+  [role="dialog"] select,
+  [role="dialog"] textarea {
+    min-height: 44px;
+  }
 }
 
 /* Custom scrollbars */

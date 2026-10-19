@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, ExternalLink, Share, Smartphone, X } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -21,10 +22,12 @@ const installTarget = () => {
 /** Chrome, Edge and Android expose a native one-click install prompt. */
 export function PwaInstallPrompt() {
   const { isRtl } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem('pwa-install-dismissed') === 'true');
   const [showHelp, setShowHelp] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const [isNarrowPhone, setIsNarrowPhone] = useState(() => window.matchMedia('(max-width: 639px)').matches);
 
   useEffect(() => {
     const receivePrompt = (event: Event) => {
@@ -44,7 +47,18 @@ export function PwaInstallPrompt() {
     };
   }, []);
 
-  if (dismissed || isStandalone()) return null;
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsNarrowPhone(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  // On a phone, the authentication action takes precedence over optional app
+  // installation. The prompt becomes available as soon as the user signs in,
+  // rather than covering the bottom action of a compact login form.
+  if (dismissed || isStandalone() || (isNarrowPhone && !isAuthenticated)) return null;
   const ios = isIos();
   const target = installTarget();
   const dismiss = () => {
