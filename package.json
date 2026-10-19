@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "seed:users": "node scripts/seed-supabase-users.mjs",
-    "export:credentials": "node scripts/export-supabase-credentials.mjs"
+    "export:credentials": "node scripts/export-supabase-credentials.mjs",
+    "reset:passwords": "node scripts/reset-supabase-passwords.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
