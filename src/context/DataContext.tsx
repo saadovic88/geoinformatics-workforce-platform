@@ -471,11 +471,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications((prev) => [newItem, ...prev]);
     // This immediate write is what delivers the alert to another signed-in
     // employee; browser storage alone cannot cross devices or accounts.
-    const result = await persistDocumentNow('notification', {
-      id: newItem.id,
-      ownerId: newItem.userId === 'all' ? null : newItem.userId,
-      payload: newItem,
-    });
+    const rpcResult = supabase && newItem.userId !== 'all'
+      ? await supabase.rpc('create_company_notification', { notification_payload: newItem })
+      : { error: null };
+    const result = rpcResult.error
+      ? { ok: false, message: rpcResult.error.message }
+      : supabase && newItem.userId !== 'all'
+      ? { ok: true }
+      : await persistDocumentNow('notification', {
+          id: newItem.id,
+          ownerId: newItem.userId === 'all' ? null : newItem.userId,
+          payload: newItem,
+        });
     if (!result.ok) {
       console.error('Could not deliver notification', result.message);
       pendingNotificationDeliveries.current = [...pendingNotificationDeliveries.current.filter((item) => item.id !== newItem.id), newItem];
@@ -1013,19 +1020,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ],
     };
 
-    const persisted = await persistDocumentNow('task', {
-      id: newTask.id,
-      ownerId: newTask.creatorId,
-      payload: newTask,
-    });
-    if (!persisted.ok) return persisted;
-
-    setTasks((prev) => [newTask, ...prev]);
-
-    // Confirm notification delivery before reporting success to the manager.
-    // A failed delivery remains queued and the global Sync button retries it.
-    const deliveries = await Promise.all(taskData.assigneeIds.map((uid) =>
-      addNotification({
+    const taskNotifications: NotificationItem[] = taskData.assigneeIds.map((uid, index) => ({
+      id: `notif_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      createdBy: currentUser.id,
         userId: uid,
         titleEn: 'New GIS Task Assigned',
         titleAr: 'تكليف بمهمة عمل جغرافية جديدة',
@@ -1034,8 +1033,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'task',
         priority: taskData.priority === 'critical' || taskData.priority === 'high' ? 'high' : 'medium',
         actionUrl: `task:${newTask.id}`,
-      })
-    ));
+    }));
+
+    if (supabase) {
+      if (!cloudReady) return { ok: false, message: 'Company data is still loading. Please try again in a moment.' };
+      const { error } = await supabase.rpc('create_company_task_delivery', {
+        task_payload: newTask,
+        notification_payloads: taskNotifications,
+      });
+      if (error) {
+        const missingMigration = error.code === 'PGRST202' || error.message.includes('create_company_task_delivery');
+        return {
+          ok: false,
+          message: missingMigration
+            ? 'Database migration 0016 is required before tasks can be delivered safely.'
+            : error.message,
+        };
+      }
+      setTasks((prev) => [newTask, ...prev]);
+      const ownNotifications = taskNotifications.filter((notification) => notification.userId === currentUser.id);
+      if (ownNotifications.length) setNotifications((prev) => [...ownNotifications, ...prev]);
+      taskNotifications.forEach(dispatchPushNotification);
+      logAction('TASK_CREATED', 'Tasks', `Created and delivered task "${taskData.title}"`);
+      return { ok: true, message: 'Task and assignee notifications were saved together.' };
+    }
+
+    // Local development fallback only. Production uses the atomic RPC above.
+    setTasks((prev) => [newTask, ...prev]);
+    const deliveries = await Promise.all(taskNotifications.map((notification) => addNotification(notification)));
 
     logAction('TASK_CREATED', 'Tasks', `Created task "${taskData.title}"`);
     const failedDeliveries = deliveries.filter((delivery) => !delivery.ok);
