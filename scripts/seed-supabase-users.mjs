@@ -36,6 +36,7 @@ const employees = [
   ['GEO-014','abdelrahman.mostafa','Eng. Abdelrahman Mostafa','GIS Specialist','gis_specialist','gis','abdelrahman.mostafa@geoinformatics.com','saad.barghouth@geoinformatics.com'],
   ['GEO-015','ahmed.tammam','Eng. Ahmed Tammam','GIS Specialist','gis_specialist','gis','ahmed.tammam@geoinformatics.com','saad.barghouth@geoinformatics.com'],
   ['GEO-016','mohamed.mokhtar','Eng. Mohamed Mokhtar','GIS Specialist','gis_specialist','gis','mohamed.mokhtar@geoinformatics.com','saad.barghouth@geoinformatics.com'],
+  ['GEO-017','adel.ahmed','Adel Ahmed','Administrative Specialist','admin_specialist','administrative','adel.ahmed@geoinformatics.com','amr.soghayar@geoinformatics.com'],
 ];
 
 // Public employee portraits bundled with the application. Keeping this map in
@@ -58,6 +59,7 @@ const avatarByUsername = {
   'abdelrahman.mostafa': '/assets/employees/abdelrahman-mostafa.png',
   'ahmed.tammam': '/assets/employees/ahmed-tammam.png',
   'mohamed.mokhtar': '/assets/employees/mohamed-mokhtar.png',
+  'adel.ahmed': '/assets/employees/9efc801b-06d5-4d39-81f0-742a21bbae1c.jpg',
 };
 
 const userMetadata = ([employeeCode, username, nameEn, jobTitleEn, roleId, departmentId]) => ({

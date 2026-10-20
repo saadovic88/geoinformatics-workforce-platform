@@ -400,6 +400,15 @@ export const INITIAL_USERS: User[] = [
     lastLogin: '2026-09-29T08:52:00Z',
     firstLoginPasswordChanged: true,
   },
+  {
+    id: 'emp_adel_ahmed', employeeCode: 'GEO-017', username: 'adel.ahmed',
+    nameEn: 'Adel Ahmed', nameAr: 'عادل أحمد', email: 'adel.ahmed@geoinformatics.com', phone: '',
+    jobTitleEn: 'Administrative Specialist', jobTitleAr: 'أخصائي إداري',
+    roleId: 'admin_specialist', departmentId: 'administrative', managerId: 'emp_soghayar',
+    status: 'active', avatarUrl: '/assets/employees/9efc801b-06d5-4d39-81f0-742a21bbae1c.jpg',
+    joiningDate: '', workScheduleId: 'sched_standard_gis',
+    emergencyContact: { name: '', relationship: '', phone: '' }, firstLoginPasswordChanged: false,
+  },
 ];
 
 export const INITIAL_LEAVE_BALANCES: LeaveBalance[] = [
