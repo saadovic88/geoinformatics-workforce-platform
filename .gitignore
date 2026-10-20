@@ -8,3 +8,4 @@ coverage/
 !.env.example
 vercel-import.env
 private-user-credentials.md
+private-password-reset-*.md

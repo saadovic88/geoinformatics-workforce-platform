@@ -25,6 +25,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { CompanyLogo } from '../common/CompanyLogo';
 import { UserAvatar } from '../common/UserAvatar';
 import { enablePushNotifications, getPushPermission, isPushSupported } from '../../lib/pushNotifications';
+import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -39,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const { isDark, toggleTheme } = useTheme();
 
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showSwitchMenu, setShowSwitchMenu] = useState(false);
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(() => localStorage.getItem('geo_notification_sound') !== 'off');
@@ -473,6 +475,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
                 </div>
 
                 <div className="p-1">
+                  <button type="button" onClick={() => { setShowUserMenu(false); setShowPasswordModal(true); }} className="w-full rounded-lg px-3 py-2 text-start text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                    {isRtl ? 'تغيير كلمة المرور' : 'Change password'}
+                  </button>
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
@@ -489,6 +494,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           </div>
         </div>
       </div>
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </header>
   );
 };

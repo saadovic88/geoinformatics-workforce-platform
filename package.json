@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "seed:users": "node scripts/seed-supabase-users.mjs",
     "export:credentials": "node scripts/export-supabase-credentials.mjs",
-    "reset:passwords": "node scripts/reset-supabase-passwords.mjs"
+    "reset:passwords": "node scripts/reset-supabase-passwords.mjs",
+    "reset:individual-passwords": "node scripts/reset-individual-passwords.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
