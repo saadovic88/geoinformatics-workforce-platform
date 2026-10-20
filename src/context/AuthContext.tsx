@@ -17,6 +17,8 @@ interface AuthContextType {
   setPendingLogoutSummary: (val: boolean) => void;
   completeLogout: () => void;
   isFullAccessUser: boolean;
+  isPasswordRecovery: boolean;
+  finishPasswordRecovery: () => void;
 }
 
 export const FULL_ACCESS_EMAILS = new Set([
@@ -120,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !supabase && localStorage.getItem('geo_is_authenticated') !== 'false');
 
   const [pendingLogoutSummary, setPendingLogoutSummary] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   // Company-wide access is deliberately limited to the three named leaders.
   // A technical system administrator does not automatically receive HR/KPI data.
   const isFullAccessUser = FULL_ACCESS_EMAILS.has(currentUser?.email?.toLowerCase());
@@ -141,8 +144,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
     };
     loadSession();
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (!session) setIsAuthenticated(false);
+      if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
     });
     return () => { alive = false; subscription.unsubscribe(); };
   }, []);
@@ -264,6 +268,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPendingLogoutSummary,
         completeLogout,
         isFullAccessUser,
+        isPasswordRecovery,
+        finishPasswordRecovery: () => setIsPasswordRecovery(false),
       }}
     >
       {children}

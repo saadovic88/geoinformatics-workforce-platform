@@ -1157,4 +1157,14 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     settings: { view: false, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
     reports: { view: false, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
   },
+  admin_specialist: {
+    dashboard: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    attendance: { view: true, create: true, edit: false, delete: false, approve: false, export: false, manage: false },
+    tasks: { view: true, create: false, edit: true, delete: false, approve: false, export: false, manage: false },
+    leaves: { view: true, create: true, edit: false, delete: false, approve: false, export: false, manage: false },
+    kpi: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    directory: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    settings: { view: false, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    reports: { view: false, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+  },
 };

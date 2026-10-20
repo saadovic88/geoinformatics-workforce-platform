@@ -34,7 +34,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutModal, onNotificationAction }) => {
-  const { currentUser, users, logout } = useAuth();
+  const { currentUser, users, logout, isPasswordRecovery, finishPasswordRecovery } = useAuth();
   const { todayAttendance, checkIn, notifications, markNotificationRead, markAllNotificationsRead, refreshCompanyData, isSyncing, lastSyncedAt } = useData();
   const { language, setLanguage, t, isRtl } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -50,6 +50,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
   const knownUnreadIds = useRef<Set<string> | null>(null);
   const notificationAudioContext = useRef<AudioContext | null>(null);
   const notificationAudioUnlocked = useRef(false);
+
+  useEffect(() => {
+    if (isPasswordRecovery) setShowPasswordModal(true);
+  }, [isPasswordRecovery]);
 
   // Notifications are private to the intended recipient (or company-wide).
   const visibleNotifications = notifications.filter((n) => n.userId === currentUser.id || n.userId === 'all');
@@ -494,7 +498,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
           </div>
         </div>
       </div>
-      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
+      {showPasswordModal && <ChangePasswordModal recovery={isPasswordRecovery} onClose={() => { setShowPasswordModal(false); finishPasswordRecovery(); }} />}
     </header>
   );
 };

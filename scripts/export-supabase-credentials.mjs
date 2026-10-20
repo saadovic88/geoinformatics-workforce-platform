@@ -1,6 +1,7 @@
 /**
- * Generates a private local login handover file from the current Supabase users.
- * The generated file is deliberately ignored by Git.
+ * Exports account identifiers only. Supabase passwords cannot be read back,
+ * and the script must never pretend the current INITIAL_PASSWORD belongs to
+ * every account after employees have changed their passwords.
  *
  * Run: npm run export:credentials
  */
@@ -8,7 +9,7 @@ import 'dotenv/config';
 import { writeFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 
-const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'INITIAL_PASSWORD'];
+const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 for (const key of required) {
   if (!process.env[key]) throw new Error(`Missing ${key} in .env`);
 }
@@ -35,7 +36,7 @@ const rows = (profiles ?? [])
     profile.username,
     profile.email,
     profile.role_id,
-    process.env.INITIAL_PASSWORD,
+    'Active — password is private and cannot be exported',
   ]);
 
 const escapeCell = (value) => String(value ?? '').replaceAll('|', '\\|');
@@ -44,9 +45,9 @@ const content = [
   '',
   `Generated: ${new Date().toLocaleString('en-GB')}`,
   '',
-  '> Private file: do not upload, email, or commit this file. Every password below is the initial shared password from `.env`; reset each user password after first sign-in.',
+  '> Account inventory only. Passwords are deliberately not exported because Supabase stores them securely and they may have been changed by employees.',
   '',
-  '| Employee code | Name | Username | Email | Role | Initial password |',
+  '| Employee code | Name | Username | Email | Role | Account status |',
   '| --- | --- | --- | --- | --- | --- |',
   ...rows.map((row) => `| ${row.map(escapeCell).join(' | ')} |`),
   '',
