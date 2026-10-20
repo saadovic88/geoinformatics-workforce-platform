@@ -136,7 +136,7 @@ export const INITIAL_USERS: User[] = [
     id: 'emp_soghayar',
     employeeCode: 'GEO-004',
     username: 'amr.soghayar',
-    nameEn: 'Amr El Soghayar',
+    nameEn: 'Mr. Amr Elsagher',
     nameAr: 'أ. عمرو الصغير',
     email: 'amr.soghayar@geoinformatics.com',
     phone: '+20 103 456 7890',
@@ -470,18 +470,10 @@ export const INITIAL_LEAVE_REQUESTS: LeaveRequest[] = [
     status: 'pending_approval',
     createdAt: '2026-09-28T14:30:00Z',
     approvalSteps: [
-      {
-        approverId: 'emp_omar',
-        approverName: 'Eng. Mohamed Omar',
-        status: 'approved',
-        actionDate: '2026-09-28T16:00:00Z',
-        notes: 'Handover plan verified with Eng. Saad.',
-      },
-      {
-        approverId: 'emp_ghada',
-        approverName: 'Dr. Ghada',
-        status: 'pending',
-      },
+      { approverId: 'emp_badawy', approverName: 'Dr. Mohamed Badawy', status: 'approved', actionDate: '2026-09-28T16:00:00Z', notes: 'Handover plan verified.' },
+      { approverId: 'emp_soghayar', approverName: 'Mr. Amr Elsagher', status: 'pending' },
+      { approverId: 'emp_salama', approverName: 'Eng. Badr El Din Salama', status: 'pending' },
+      { approverId: 'emp_barghouth', approverName: 'Eng. Saad Barghouth', status: 'pending' },
     ],
   },
   {
@@ -497,20 +489,10 @@ export const INITIAL_LEAVE_REQUESTS: LeaveRequest[] = [
     status: 'approved',
     createdAt: '2026-09-27T10:00:00Z',
     approvalSteps: [
-      {
-        approverId: 'emp_omar',
-        approverName: 'Eng. Mohamed Omar',
-        status: 'approved',
-        actionDate: '2026-09-27T11:20:00Z',
-        notes: 'Approved for remote processing.',
-      },
-      {
-        approverId: 'emp_ghada',
-        approverName: 'Dr. Ghada',
-        status: 'approved',
-        actionDate: '2026-09-27T12:00:00Z',
-        notes: 'Approved.',
-      },
+      { approverId: 'emp_badawy', approverName: 'Dr. Mohamed Badawy', status: 'approved', actionDate: '2026-09-27T11:20:00Z' },
+      { approverId: 'emp_soghayar', approverName: 'Mr. Amr Elsagher', status: 'approved', actionDate: '2026-09-27T11:30:00Z' },
+      { approverId: 'emp_salama', approverName: 'Eng. Badr El Din Salama', status: 'approved', actionDate: '2026-09-27T11:40:00Z' },
+      { approverId: 'emp_sherif', approverName: 'Eng. Sherif Younes', status: 'approved', actionDate: '2026-09-27T12:00:00Z' },
     ],
   },
   {
@@ -526,16 +508,10 @@ export const INITIAL_LEAVE_REQUESTS: LeaveRequest[] = [
     status: 'pending_approval',
     createdAt: '2026-09-29T09:30:00Z',
     approvalSteps: [
-      {
-        approverId: 'emp_omar',
-        approverName: 'Eng. Mohamed Omar',
-        status: 'pending',
-      },
-      {
-        approverId: 'emp_ghada',
-        approverName: 'Dr. Ghada',
-        status: 'pending',
-      },
+      { approverId: 'emp_badawy', approverName: 'Dr. Mohamed Badawy', status: 'pending' },
+      { approverId: 'emp_soghayar', approverName: 'Mr. Amr Elsagher', status: 'pending' },
+      { approverId: 'emp_salama', approverName: 'Eng. Badr El Din Salama', status: 'pending' },
+      { approverId: 'emp_barghouth', approverName: 'Eng. Saad Barghouth', status: 'pending' },
     ],
     externalSiteDetails: {
       clientName: 'Urban Development Authority',
@@ -896,7 +872,7 @@ export const INITIAL_TASKS: Task[] = [
 export const INITIAL_MONTHLY_KPIS: MonthlyKPIRecord[] = [
   ...INITIAL_USERS.map((user) => {
     // Generate realistic historical performance
-    const isLead = ['emp_badawy', 'emp_omar', 'emp_ghada', 'emp_soghayar', 'emp_salama', 'emp_barghouth', 'emp_kyrillos', 'emp_sherif'].includes(user.id);
+    const isLead = ['emp_badawy', 'emp_soghayar', 'emp_salama', 'emp_barghouth', 'emp_kyrillos', 'emp_sherif'].includes(user.id);
     const attScore = isLead ? 19.5 : 18.2;
     const workScore = isLead ? 38.5 : 36.4;
     const behScore = isLead ? 19.2 : 18.8;
@@ -964,7 +940,7 @@ export const INITIAL_MONTHLY_KPIS: MonthlyKPIRecord[] = [
       status: 'published' as const,
       publishedAt: '2026-09-28T18:00:00Z',
       evaluatorId: 'emp_badawy',
-      reviewedBy: user.managerId || 'emp_omar',
+      reviewedBy: user.managerId || 'emp_badawy',
       evidenceLinks: [
         { title: 'ArcGIS Pro Spatial Analyst Credential', url: '#', category: 'self_development' },
         { title: 'Project Deliverable Approval Sign-off', url: '#', category: 'work_performance' },
@@ -988,10 +964,10 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif_2',
-    userId: 'emp_omar',
-    titleEn: 'Leave Request Awaiting Dual Approval',
+    userId: 'emp_badawy',
+    titleEn: 'Leave Request Awaiting Approval',
     titleAr: 'طلب إجازة جديد بانتظار الاعتماد الثنائي',
-    messageEn: 'Eng. Mostafa Nasser submitted an Annual Leave request (4 days) requiring your sign-off.',
+    messageEn: 'Eng. Mostafa Nasser submitted an Annual Leave request (4 days) requiring your approval.',
     messageAr: 'قدم م. مصطفى ناصر طلب إجازة اعتيادية (4 أيام) تتطلب توقيعكم.',
     type: 'leave',
     priority: 'high',
@@ -1001,10 +977,10 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: 'notif_3',
-    userId: 'emp_ghada',
-    titleEn: 'Leave Request Awaiting Final Approval',
+    userId: 'emp_soghayar',
+    titleEn: 'Leave Request Awaiting Approval',
     titleAr: 'طلب إجازة بانتظار الاعتماد النهائي',
-    messageEn: 'Eng. Mostafa Nasser request was approved by Eng. Mohamed Omar. Your final sign-off is needed.',
+    messageEn: 'Eng. Mostafa Nasser submitted an Annual Leave request requiring your approval.',
     messageAr: 'تمت موافقة م. محمد عمر على طلب م. مصطفى ناصر، والطلب بانتظار اعتمادكم النهائي.',
     type: 'leave',
     priority: 'high',
@@ -1053,11 +1029,11 @@ export const INITIAL_AUDIT_LOGS: AuditLogItem[] = [
   },
   {
     id: 'aud_2',
-    userId: 'emp_omar',
-    userName: 'Eng. Mohamed Omar',
+    userId: 'emp_badawy',
+    userName: 'Dr. Mohamed Badawy',
     action: 'LEAVE_STEP1_APPROVED',
-    module: 'Leaves & Dual Approval',
-    details: 'Approved step 1 for Annual Leave Request #lr_101 (Eng. Mostafa Nasser).',
+    module: 'Leave Approvals',
+    details: 'Approved a required step for Annual Leave Request #lr_101 (Eng. Mostafa Nasser).',
     ipAddress: '197.38.12.90',
     timestamp: '2026-09-28T16:00:00Z',
   },
@@ -1100,7 +1076,7 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     // approve, export, or administer operational records.
     dashboard: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
     attendance: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
-    tasks: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
+    tasks: { view: false, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
     leaves: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
     kpi: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },
     directory: { view: true, create: false, edit: false, delete: false, approve: false, export: false, manage: false },

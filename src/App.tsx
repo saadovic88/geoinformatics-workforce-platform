@@ -26,7 +26,7 @@ import { CompanySettingsView } from './components/admin/CompanySettingsView';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 const MainAppContent: React.FC = () => {
-  const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary, currentUser, isFullAccessUser } = useAuth();
+  const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary, currentUser, isFullAccessUser, hasPermission } = useAuth();
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [manualCheckoutModal, setManualCheckoutModal] = useState(false);
@@ -116,11 +116,11 @@ const MainAppContent: React.FC = () => {
       case 'schedules':
         return isFullAccessUser ? <SchedulesHolidaysView /> : adminFallback();
       case 'tasks_my':
-        return <TasksView key={`${activePage}-${notificationTarget?.itemId || ''}`} filterScope="my" initialViewMode="list" initialTaskId={notificationTarget?.itemId} />;
+        return hasPermission('tasks', 'view') ? <TasksView key={`${activePage}-${notificationTarget?.itemId || ''}`} filterScope="my" initialViewMode="list" initialTaskId={notificationTarget?.itemId} /> : adminFallback();
       case 'tasks_team':
         return isFullAccessUser ? <TasksView key={activePage} filterScope="team" initialViewMode="kanban" /> : adminFallback();
       case 'tasks_kanban':
-        return <TasksView key={activePage} initialViewMode="kanban" />;
+        return hasPermission('tasks', 'view') ? <TasksView key={activePage} initialViewMode="kanban" /> : adminFallback();
       case 'task_insights':
         return isFullAccessUser ? <TasksView key={activePage} filterScope="team" initialViewMode="insights" /> : adminFallback();
       case 'leaves_requests':

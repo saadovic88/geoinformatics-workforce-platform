@@ -118,9 +118,9 @@ export const translations = {
     on_leave: 'On Approved Leave',
 
     // Dual Approval Leave System
-    leaveApprovalWorkflow: 'Mandatory Dual Approval Chain (Eng. Mohamed Omar & Dr. Ghada)',
-    approverOmar: 'Eng. Mohamed Omar (Co-Founder)',
-    approverGhada: 'Dr. Ghada (Co-Founder)',
+    leaveApprovalWorkflow: 'Department approval chain (observer accounts excluded)',
+    approverOmar: 'Eng. Mohamed Omar (View-only observer)',
+    approverGhada: 'Dr. Ghada (View-only observer)',
     approvalRequirementText: 'Both approvers must approve this request. Immediate rejection if either denies.',
     partiallyApprovedMsg: 'Partially Approved – Pending Final Approval',
     fullyApprovedMsg: 'Fully Approved (Balances Deducted & Attendance Synchronized)',

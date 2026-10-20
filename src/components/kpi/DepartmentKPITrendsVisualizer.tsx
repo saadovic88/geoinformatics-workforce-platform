@@ -109,7 +109,7 @@ export const DepartmentKPITrendsVisualizer: React.FC<DepartmentKPITrendsVisualiz
       fillColor: 'rgba(16, 185, 129, 0.15)',
       avgScore: 94.2,
       trend: '+1.4%',
-      leader: 'Amr El Soghayar',
+      leader: 'Mr. Amr Elsagher',
     },
     {
       id: 'training',

@@ -15,8 +15,8 @@ export const RolesPermissionsView: React.FC = () => {
 
   const roles: { id: RoleId; nameEn: string; nameAr: string }[] = [
     { id: 'ceo', nameEn: '1. CEO (Dr. Mohamed Badawy)', nameAr: '1. الرئيس التنفيذي (د. محمد بدوي)' },
-    { id: 'co_founder', nameEn: '2. Co-Founder (Eng. Mohamed Omar & Dr. Ghada)', nameAr: '2. المؤسسون المشاركون (م. محمد عمر و د. غادة)' },
-    { id: 'admin_manager', nameEn: '3. Administrative Manager (Amr El Soghayar)', nameAr: '3. المدير الإداري (أ. عمرو الصغير)' },
+    { id: 'co_founder', nameEn: '2. Co-Founder (View-only observers)', nameAr: '2. المؤسسون المشاركون (عرض ومراقبة فقط)' },
+    { id: 'admin_manager', nameEn: '3. Administrative Manager (Mr. Amr Elsagher)', nameAr: '3. المدير الإداري (أ. عمرو الصغير)' },
     { id: 'tech_manager', nameEn: '4. Technical Manager (Eng. Badr El Din Salama)', nameAr: '4. المدير التقني (م. بدر الدين سلامة)' },
     { id: 'gis_manager', nameEn: '5. GIS Manager (Eng. Saad Barghouth)', nameAr: '5. مدير نظم المعلومات (م. سعد برغوث)' },
     { id: 'training_manager', nameEn: '6. Training Manager (Eng. Kyrillos Talaat)', nameAr: '6. مدير التدريب والتأهيل (م. كيرلس طلعت)' },

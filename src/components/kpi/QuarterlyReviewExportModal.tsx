@@ -418,7 +418,7 @@ export const QuarterlyReviewExportModal: React.FC<QuarterlyReviewExportModalProp
               <span>
                 {isRtl
                   ? 'التقرير معتمد ثنائياً من المؤسسين (م. محمد عمر و د. غادة) ومصدق من الإدارة التنفيذية.'
-                  : 'Report verified under mandatory dual executive signatories (Eng. Mohamed Omar & Dr. Ghada).'}
+                  : 'Mohamed Omar and Dr. Ghada have view-only observer access and do not sign this report.'}
               </span>
             </div>
             <div className="flex items-center gap-2">

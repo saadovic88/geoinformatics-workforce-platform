@@ -14,7 +14,7 @@ export const AutomationsView: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([
     'Automations daemon active and monitoring events.',
     'Geofence 500m threshold validation scanner initialized.',
-    'Dual Signatory Workflow listener subscribed to Eng. Mohamed Omar & Dr. Ghada signatures.',
+    'Department leave approval workflow listener active. Observer accounts are excluded.',
     'Overtime calculator initialized with 8-hour daily policy.',
   ]);
 
@@ -54,11 +54,11 @@ export const AutomationsView: React.FC = () => {
       statusAr: 'نشط',
     },
     {
-      titleEn: 'Mandatory Dual Signatory Leave Synchronizer',
+      titleEn: 'Department Leave Approval Synchronizer',
       titleAr: 'مزامنة الاعتماد الثنائي الإلزامي للإجازات',
       triggerEn: 'Leave Approval Steps',
       triggerAr: 'خطوات اعتماد الإجازات والأذونات',
-      actionEn: 'Waits for both Eng. Mohamed Omar & Dr. Ghada. If either rejects: instant rejection. If both approve: deducts balances & updates attendance.',
+      actionEn: 'Tracks the three company approvers and the relevant department head. Observer accounts never approve or reject requests.',
       actionAr: 'يشترط موافقة م. محمد عمر و د. غادة معاً. الرفض يلغي فوراً، والموافقة تخصم الرصيد وتزامن الحضور.',
       statusEn: 'Active',
       statusAr: 'نشط',
@@ -78,7 +78,7 @@ export const AutomationsView: React.FC = () => {
       titleAr: 'إغلاق جلسات الحضور المفتوحة في نهاية اليوم',
       triggerEn: 'Manual review cycle',
       triggerAr: 'يومياً الساعة 6:30 مساءً',
-      actionEn: 'Flags unclosed sessions, notifies HR Director Amr El Soghayar, sends reminder to employee.',
+      actionEn: 'Flags unclosed sessions, notifies Administrative Manager Mr. Amr Elsagher, and reminds the employee.',
       actionAr: 'يرصد الجلسات غير المغلقة، ويُخطر المدير الإداري عمرو الصغير، ويُرسل تذكيراً للموظف.',
       statusEn: 'Ready for manual run',
       statusAr: 'نشط',

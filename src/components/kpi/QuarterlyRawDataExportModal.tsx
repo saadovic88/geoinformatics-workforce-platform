@@ -306,7 +306,7 @@ export const QuarterlyRawDataExportModal: React.FC<QuarterlyRawDataExportModalPr
             <span>
               {isRtl
                 ? 'ملاحظة: البيانات تتضمن التوقيع والاعتماد الثنائي الإلزامي من المؤسسين (م. محمد عمر و د. غادة) وتصديق د. محمد بدوي.'
-                : 'Note: Dataset includes certified governance metadata with mandatory dual signatures from Eng. Mohamed Omar and Dr. Ghada.'}
+                : 'Note: Mohamed Omar and Dr. Ghada are view-only observers and do not sign or approve operational records.'}
             </span>
           </div>
         </div>

@@ -81,9 +81,11 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewScore, setReviewScore] = useState<number>(95);
   const [reviewNotes, setReviewNotes] = useState<string>('');
 
-  const directReports = users.filter((user) => user.managerId === currentUser.id && user.status === 'active');
-  const assignableUsers = isFullAccessUser ? users.filter((user) => user.status === 'active') : directReports;
-  const canAssignTasks = isFullAccessUser || directReports.length > 0;
+  const directReports = users.filter((user) => user.managerId === currentUser.id && user.status === 'active' && user.roleId !== 'co_founder');
+  // Co-founders are monitoring-only observers and must never receive tasks.
+  const assignableUsers = (isFullAccessUser ? users.filter((user) => user.status === 'active') : directReports)
+    .filter((user) => user.roleId !== 'co_founder');
+  const canAssignTasks = currentUser.roleId !== 'co_founder' && (isFullAccessUser || directReports.length > 0);
   const isManager = canAssignTasks;
   const canConfirmCompletion = isFullAccessUser;
   const canViewTeamTask = (task: Task) =>

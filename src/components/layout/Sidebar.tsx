@@ -84,6 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const canApproveLeave = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
   const canViewPeopleDirectory = isPlatformAdmin;
   const canManageSettings = isPlatformAdmin;
+  const canViewTasks = hasPermission('tasks', 'view');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const navGroups = [
@@ -116,10 +117,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleEn: 'Tasks & GIS Projects',
       titleAr: 'المهام ومشاريع GIS',
       items: [
-        { id: 'tasks_my' as ActivePage, label: t('navMyTasks'), icon: CheckSquare, show: true },
-        { id: 'tasks_team' as ActivePage, label: t('navTeamTasks'), icon: ListTodo, show: canViewTeamOperations },
-        { id: 'tasks_kanban' as ActivePage, label: t('navKanban'), icon: Kanban, show: true },
-        { id: 'task_insights' as ActivePage, label: t('navTaskInsights'), icon: BarChart3, show: canViewTeamOperations },
+        { id: 'tasks_my' as ActivePage, label: t('navMyTasks'), icon: CheckSquare, show: canViewTasks },
+        { id: 'tasks_team' as ActivePage, label: t('navTeamTasks'), icon: ListTodo, show: canViewTasks && canViewTeamOperations },
+        { id: 'tasks_kanban' as ActivePage, label: t('navKanban'), icon: Kanban, show: canViewTasks },
+        { id: 'task_insights' as ActivePage, label: t('navTaskInsights'), icon: BarChart3, show: canViewTasks && canViewTeamOperations },
       ],
     },
     {

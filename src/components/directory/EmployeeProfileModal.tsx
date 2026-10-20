@@ -382,7 +382,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
                   )}
                   {['emp_omar', 'emp_ghada'].includes(user.id) && (
                     <span className="p-2 rounded-lg bg-purple-50 border border-purple-200 text-purple-800 font-bold">
-                      {isRtl ? '★ معتمد ثنائي إلزامي' : '★ Mandatory Dual Signatory'}
+                      {isRtl ? 'عرض ومراقبة فقط' : 'View-only observer'}
                     </span>
                   )}
                 </div>

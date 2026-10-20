@@ -379,7 +379,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
 
           <div className="space-y-2.5 text-xs">
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-              <span className="font-medium text-slate-700">{isRtl ? 'الإدارة: عمرو الصغير' : 'Administration: Amr El Soghayar'}</span>
+              <span className="font-medium text-slate-700">{isRtl ? 'الإدارة: أ. عمرو الصغير' : 'Administration: Mr. Amr Elsagher'}</span>
               <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                 {isRtl ? 'مسؤول القسم' : 'Department owner'}
               </span>

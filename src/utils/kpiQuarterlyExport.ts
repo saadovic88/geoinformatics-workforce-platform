@@ -231,10 +231,10 @@ export function exportQuarterlyCSV(
   });
 
   lines.push('');
-  lines.push('=== MANDATORY DUAL SIGNATORIES FOR QUARTERLY ARCHIVE ===');
-  lines.push('Co-Founder & Executive Approver 1,Eng. Mohamed Omar (م. محمد عمر),Status: Signed & Verified');
-  lines.push('Co-Founder & Executive Approver 2,Dr. Ghada (د. غادة),Status: Signed & Verified');
-  lines.push('Chief Executive Officer (CEO),Dr. Mohamed Badawy (د. محمد بدوي),Status: Endorsed');
+  lines.push('=== OPERATIONAL REVIEWERS FOR QUARTERLY ARCHIVE ===');
+  lines.push('Chief Executive Officer,Dr. Mohamed Badawy,Status: Reviewed');
+  lines.push('Administrative Manager,Mr. Amr Elsagher,Status: Reviewed');
+  lines.push('Technical Manager,Eng. Badr El Din Salama,Status: Reviewed');
 
   const csvContent = lines.join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -562,9 +562,9 @@ export function exportRawQuarterlyPerformanceCSV(options: RawPerformanceExportOp
             totalNetHours > 0 ? totalNetHours.toFixed(1) : '520.0',
             totalOvertime > 0 ? totalOvertime.toFixed(1) : '14.5',
             safeStr(item.notes),
-            safeStr('Eng. Mohamed Omar [SIGNED & VERIFIED]'),
-            safeStr('Dr. Ghada [SIGNED & VERIFIED]'),
-            safeStr('Dr. Mohamed Badawy [ENDORSED]'),
+            safeStr('Dr. Mohamed Badawy [REVIEWED]'),
+            safeStr('Mr. Amr Elsagher [REVIEWED]'),
+            safeStr('Eng. Badr El Din Salama [REVIEWED]'),
             safeStr(new Date().toISOString()),
           ].join(',')
         );
@@ -747,31 +747,31 @@ export function exportQuarterlyPDF(
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(71, 85, 105);
-  doc.text('MANDATORY DUAL SIGNATORIES & ENDORSEMENTS:', 14, signatureY + 5);
+  doc.text('OPERATIONAL REVIEWERS:', 14, signatureY + 5);
 
   const sigWidth = (pageWidth - 28) / 3;
 
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Co-Founder & Executive Approver 1:', 14, signatureY + 11);
+  doc.text('Chief Executive Officer:', 14, signatureY + 11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text('Eng. Mohamed Omar [SIGNED]', 14, signatureY + 16);
+  doc.text('Dr. Mohamed Badawy [REVIEWED]', 14, signatureY + 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Co-Founder & Executive Approver 2:', 14 + sigWidth, signatureY + 11);
+  doc.text('Administrative Manager:', 14 + sigWidth, signatureY + 11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text('Dr. Ghada [SIGNED]', 14 + sigWidth, signatureY + 16);
+  doc.text('Mr. Amr Elsagher [REVIEWED]', 14 + sigWidth, signatureY + 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('Chief Executive Officer (CEO):', 14 + sigWidth * 2, signatureY + 11);
+  doc.text('Technical Manager:', 14 + sigWidth * 2, signatureY + 11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text('Dr. Mohamed Badawy [ENDORSED]', 14 + sigWidth * 2, signatureY + 16);
+  doc.text('Eng. Badr El Din Salama [REVIEWED]', 14 + sigWidth * 2, signatureY + 16);
 
   // Save the PDF
   doc.save(`Geoinformatics_Quarterly_Performance_${stats.quarter}_${stats.year}.pdf`);

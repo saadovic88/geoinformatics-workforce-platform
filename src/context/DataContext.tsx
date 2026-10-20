@@ -997,6 +997,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Tasks Management
   const createTask = async (taskData: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => {
+    if (taskData.assigneeIds.some((id) => users.find((user) => user.id === id)?.roleId === 'co_founder')) {
+      return { ok: false, message: 'Monitoring-only co-founders cannot be assigned operational tasks.' };
+    }
     const directReportIds = new Set(users
       .filter((user) => user.managerId === currentUser?.id && user.status === 'active')
       .map((user) => user.id));

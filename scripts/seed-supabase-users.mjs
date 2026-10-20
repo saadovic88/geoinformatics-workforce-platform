@@ -23,7 +23,7 @@ const employees = [
   ['GEO-001','dr.badawy','Dr. Mohamed Badawy','CEO','ceo','executive','m.badawy@geoinformatics.com',null],
   ['GEO-002','eng.omar','Eng. Mohamed Omar','Co-Founder','co_founder','executive','m.omar@geoinformatics.com',null],
   ['GEO-003','dr.ghada','Dr. Ghada','Co-Founder','co_founder','executive','dr.ghada@geoinformatics.com',null],
-  ['GEO-004','amr.soghayar','Amr El Soghayar','Administrative Manager','admin_manager','administrative','amr.soghayar@geoinformatics.com',null],
+  ['GEO-004','amr.soghayar','Mr. Amr Elsagher','Administrative Manager','admin_manager','administrative','amr.soghayar@geoinformatics.com',null],
   ['GEO-005','badr.salama','Eng. Badr El Din Salama','Technical Manager','tech_manager','technical','badr.salama@geoinformatics.com',null],
   ['GEO-006','saad.barghouth','Eng. Saad Barghouth','GIS Manager','gis_manager','gis','saad.barghouth@geoinformatics.com',null],
   ['GEO-007','kyrillos.talaat','Eng. Kyrillos Talaat','Training Manager','training_manager','training','kyrillos.talaat@geoinformatics.com',null],
