@@ -33,6 +33,7 @@ import { canSubmitOwnLeave, getLeaveApprovers } from '../utils/leavePolicy';
 import { buildTaskStageNotification, canTransitionTask, TASK_STAGE_META } from '../utils/taskWorkflow';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
+import { formatTaskAttachmentSize, safeTaskAttachmentName, taskAttachmentKind, validateTaskAttachment } from '../utils/taskAttachments';
 
 interface DataContextType {
   // Attendance
@@ -62,13 +63,15 @@ interface DataContextType {
   cancelLeaveRequest: (requestId: string) => void;
   // Tasks
   tasks: Task[];
-  createTask: (task: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => Promise<{ ok: boolean; message?: string }>;
+  createTask: (task: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => Promise<{ ok: boolean; message?: string; taskId?: string }>;
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
   updateTaskStatus: (taskId: string, status: TaskStatus, note?: string) => Promise<{ ok: boolean; message?: string }>;
   toggleSubtask: (taskId: string, subtaskId: string) => Promise<{ ok: boolean; message?: string }>;
   addTaskSubtask: (taskId: string, title: string) => void;
-  addTaskAttachment: (taskId: string, name: string, url: string) => void;
+  addTaskAttachment: (taskId: string, name: string, url: string) => Promise<{ ok: boolean; message?: string }>;
+  uploadTaskAttachment: (taskId: string, file: File) => Promise<{ ok: boolean; message?: string }>;
+  getTaskAttachmentUrl: (attachment: Task['attachments'][number]) => Promise<{ ok: boolean; url?: string; message?: string }>;
   logTaskTime: (taskId: string, hours: number) => void;
   addTaskComment: (taskId: string, content: string) => Promise<{ ok: boolean; message?: string }>;
   reviewTask: (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => Promise<{ ok: boolean; message?: string }>;
@@ -1137,7 +1140,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (ownNotifications.length) setNotifications((prev) => [...ownNotifications, ...prev]);
       taskNotifications.forEach(dispatchPushNotification);
       logAction('TASK_CREATED', 'Tasks', `Created and delivered task "${taskData.title}"`);
-      return { ok: true, message: 'Task and assignee notifications were saved together.' };
+      return { ok: true, taskId: newTask.id, message: 'Task and assignee notifications were saved together.' };
     }
 
     // Local development fallback only. Production uses the atomic RPC above.
@@ -1147,8 +1150,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logAction('TASK_CREATED', 'Tasks', `Created task "${taskData.title}"`);
     const failedDeliveries = deliveries.filter((delivery) => !delivery.ok);
     return failedDeliveries.length
-      ? { ok: true, message: 'The task was saved. One or more alerts are queued for retry; use Sync if they do not arrive.' }
-      : { ok: true, message: 'Task saved and delivered to the assigned employee.' };
+      ? { ok: true, taskId: newTask.id, message: 'The task was saved. One or more alerts are queued for retry; use Sync if they do not arrive.' }
+      : { ok: true, taskId: newTask.id, message: 'Task saved and delivered to the assigned employee.' };
   };
 
   const updateTask = (updatedTask: Task) => {
@@ -1270,16 +1273,76 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } : task));
   };
 
-  const addTaskAttachment = (taskId: string, name: string, url: string) => {
+  const addTaskAttachment = async (taskId: string, name: string, url: string) => {
     const target = tasks.find((task) => task.id === taskId);
-    if (!target || !name.trim() || !/^https?:\/\//i.test(url.trim()) || (!isFullAccessUser && target.creatorId !== currentUser.id && !target.assigneeIds.includes(currentUser.id))) return;
-    setTasks((previous) => previous.map((task) => task.id === taskId ? {
-      ...task,
-      attachments: [...task.attachments, {
-        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        name: name.trim(), fileType: 'link', url: url.trim(), uploadedAt: new Date().toISOString(),
-      }],
-    } : task));
+    if (!target || !name.trim() || !/^https:\/\//i.test(url.trim()) || (!isFullAccessUser && target.creatorId !== currentUser.id && !target.assigneeIds.includes(currentUser.id))) return { ok: false, message: 'A valid HTTPS link and task access are required.' };
+    const attachment = { id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: name.trim(), fileType: 'link' as const, url: url.trim(), uploadedAt: new Date().toISOString() };
+    if (!supabase) {
+      setTasks((previous) => previous.map((task) => task.id === taskId ? { ...task, attachments: [...task.attachments, attachment] } : task));
+      return { ok: true };
+    }
+    if (!cloudReady) return { ok: false, message: 'Company data is still loading. Please try again.' };
+    const { data, error } = await supabase.rpc('add_company_task_attachment', { task_document_id: taskId, attachment_payload: attachment });
+    if (error) return { ok: false, message: error.message };
+    const authoritativeTask = (data as { task?: Task } | null)?.task;
+    if (!authoritativeTask) return { ok: false, message: 'The server did not return the updated task.' };
+    setTasks((previous) => previous.map((task) => task.id === taskId ? authoritativeTask : task));
+    rememberCloudDocuments([{ kind: 'task', document_id: authoritativeTask.id, owner_id: authoritativeTask.creatorId, payload: authoritativeTask }], false);
+    return { ok: true };
+  };
+
+  /** Upload a small approved file, then append its private path through an
+   * atomic database function so an old browser tab cannot overwrite the task. */
+  const uploadTaskAttachment = async (taskId: string, file: File) => {
+    const target = tasks.find((task) => task.id === taskId);
+    if (!target || (!isFullAccessUser && target.creatorId !== currentUser.id && !target.assigneeIds.includes(currentUser.id))) {
+      return { ok: false, message: 'You are not authorised to attach a file to this task.' };
+    }
+    const validationMessage = validateTaskAttachment(file);
+    if (validationMessage) return { ok: false, message: validationMessage };
+    if (!supabase) return { ok: false, message: 'File uploads require the company database connection.' };
+    if (!cloudReady) return { ok: false, message: 'Company data is still loading. Please try again in a moment.' };
+
+    const attachmentId = `att_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const storagePath = `${currentUser.id}/${taskId}/${attachmentId}_${safeTaskAttachmentName(file.name)}`;
+    const { error: uploadError } = await supabase.storage.from('task-attachments').upload(storagePath, file, {
+      contentType: file.type || undefined,
+      upsert: false,
+    });
+    if (uploadError) return { ok: false, message: uploadError.message };
+
+    const attachment = {
+      id: attachmentId,
+      name: file.name,
+      fileType: taskAttachmentKind(file.name),
+      size: formatTaskAttachmentSize(file.size),
+      url: '',
+      storagePath,
+      uploadedAt: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.rpc('add_company_task_attachment', {
+      task_document_id: taskId,
+      attachment_payload: attachment,
+    });
+    if (error) {
+      // The object has no task reference if the atomic append failed, so it is
+      // safe to remove immediately rather than leaving orphaned company data.
+      await supabase.storage.from('task-attachments').remove([storagePath]);
+      const missing = error.code === 'PGRST202' || error.message.includes('add_company_task_attachment');
+      return { ok: false, message: missing ? 'Database migration 0023 is required before uploading task files.' : error.message };
+    }
+    const authoritativeTask = (data as { task?: Task } | null)?.task;
+    if (!authoritativeTask) return { ok: false, message: 'The file was uploaded but the task did not return an updated record. Refresh and verify it.' };
+    setTasks((previous) => previous.map((task) => task.id === taskId ? authoritativeTask : task));
+    rememberCloudDocuments([{ kind: 'task', document_id: authoritativeTask.id, owner_id: authoritativeTask.creatorId, payload: authoritativeTask }], false);
+    return { ok: true };
+  };
+
+  const getTaskAttachmentUrl = async (attachment: Task['attachments'][number]) => {
+    if (!attachment.storagePath) return attachment.url ? { ok: true, url: attachment.url } : { ok: false, message: 'Attachment link is unavailable.' };
+    if (!supabase) return { ok: false, message: 'The company database connection is required to open this file.' };
+    const { data, error } = await supabase.storage.from('task-attachments').createSignedUrl(attachment.storagePath, 60);
+    return error || !data?.signedUrl ? { ok: false, message: error?.message || 'Could not create a secure file link.' } : { ok: true, url: data.signedUrl };
   };
 
   const logTaskTime = (taskId: string, hours: number) => {
@@ -1473,6 +1536,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleSubtask,
         addTaskSubtask,
         addTaskAttachment,
+        uploadTaskAttachment,
+        getTaskAttachmentUrl,
         logTaskTime,
         addTaskComment,
         reviewTask,

@@ -189,9 +189,11 @@ export interface TaskSubtask {
 export interface TaskAttachment {
   id: string;
   name: string;
-  fileType: 'image' | 'pdf' | 'spreadsheet' | 'gis_shapefile' | 'link';
+  fileType: 'image' | 'document' | 'presentation' | 'spreadsheet' | 'pdf' | 'gis_shapefile' | 'link';
   size?: string;
   url: string;
+  /** Private Storage object path. Never expose a permanent public URL. */
+  storagePath?: string;
   uploadedAt: string;
 }
 
