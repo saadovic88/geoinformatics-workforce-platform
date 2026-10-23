@@ -216,6 +216,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPendingLogoutSummary(false);
     setIsAuthenticated(false);
     localStorage.setItem('geo_is_authenticated', 'false');
+    [
+      'geo_current_user_id',
+      'geo_attendance_data',
+      'geo_zones_data',
+      'geo_schedules_data',
+      'geo_holidays_data',
+      'geo_leave_requests_data',
+      'geo_leave_balances_data',
+      'geo_tasks_data',
+      'geo_kpi_data',
+      'geo_notifs_data',
+      'geo_audit_logs',
+    ].forEach((key) => localStorage.removeItem(key));
     if (supabase) void supabase.auth.signOut();
   };
 

@@ -28,6 +28,7 @@ export function PwaInstallPrompt() {
   const [showHelp, setShowHelp] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [isNarrowPhone, setIsNarrowPhone] = useState(() => window.matchMedia('(max-width: 639px)').matches);
+  const [hasOpenDialog, setHasOpenDialog] = useState(() => Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')));
 
   useEffect(() => {
     const receivePrompt = (event: Event) => {
@@ -48,6 +49,14 @@ export function PwaInstallPrompt() {
   }, []);
 
   useEffect(() => {
+    const update = () => setHasOpenDialog(Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['role', 'aria-modal'] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
     const update = () => setIsNarrowPhone(media.matches);
     update();
@@ -58,7 +67,7 @@ export function PwaInstallPrompt() {
   // On a phone, the authentication action takes precedence over optional app
   // installation. The prompt becomes available as soon as the user signs in,
   // rather than covering the bottom action of a compact login form.
-  if (dismissed || isStandalone() || (isNarrowPhone && !isAuthenticated)) return null;
+  if (dismissed || isStandalone() || hasOpenDialog || (isNarrowPhone && !isAuthenticated)) return null;
   const ios = isIos();
   const target = installTarget();
   const dismiss = () => {

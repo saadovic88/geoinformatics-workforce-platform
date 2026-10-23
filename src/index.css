@@ -121,11 +121,50 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
 
+/* Legacy screens predate the theme switch and use light-only utilities. Scope
+   their dark palette to the signed-in workspace; components with an explicit
+   dark utility continue to own that property. */
+html.dark .platform-shell :is(.bg-white, .bg-white\/95, .bg-white\/90, .bg-white\/85, .bg-white\/80, .bg-white\/75):not([class*="dark:bg-"]) { background-color: #18263a; }
+html.dark .platform-shell :is(.bg-slate-50, .bg-slate-50\/80, .bg-slate-50\/70, .bg-slate-50\/60, .bg-slate-50\/50, .bg-gray-50):not([class*="dark:bg-"]) { background-color: #111e30; }
+html.dark .platform-shell :is(.bg-slate-100, .bg-slate-100\/80, .bg-gray-100):not([class*="dark:bg-"]) { background-color: #26364b; }
+html.dark .platform-shell :is(.bg-slate-200, .bg-gray-200):not([class*="dark:bg-"]) { background-color: #35465c; }
+html.dark .platform-shell :is(.text-slate-900, .text-slate-800, .text-gray-900, .text-gray-800):not([class*="dark:text-"]) { color: #f1f5f9; }
+html.dark .platform-shell :is(.text-slate-700, .text-slate-600, .text-gray-700, .text-gray-600):not([class*="dark:text-"]) { color: #d1dbea; }
+html.dark .platform-shell :is(.text-slate-500, .text-slate-400, .text-gray-500, .text-gray-400):not([class*="dark:text-"]) { color: #aabbd0; }
+html.dark .platform-shell :is(.border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300):not([class*="dark:border-"]) { border-color: #3a4b61; }
+html.dark .platform-shell :is(.divide-slate-100, .divide-slate-200, .divide-gray-100, .divide-gray-200):not([class*="dark:divide-"]) > :not([hidden]) ~ :not([hidden]) { border-color: #3a4b61; }
+
+/* Tint status surfaces and their labels together so badges and alerts retain
+   their meaning without bright panels interrupting the dark workspace. */
+html.dark .platform-shell :is(.bg-blue-50, .bg-blue-50\/50, .bg-blue-50\/60, .bg-blue-50\/70, .bg-blue-100, .bg-sky-50, .bg-sky-100):not([class*="dark:bg-"]) { background-color: #18365a; }
+html.dark .platform-shell :is(.bg-emerald-50, .bg-emerald-50\/50, .bg-emerald-50\/60, .bg-emerald-50\/70, .bg-green-50, .bg-green-100, .bg-teal-50):not([class*="dark:bg-"]) { background-color: #123d38; }
+html.dark .platform-shell :is(.bg-amber-50, .bg-amber-50\/60, .bg-amber-50\/70, .bg-amber-100, .bg-yellow-50, .bg-yellow-100, .bg-orange-50):not([class*="dark:bg-"]) { background-color: #49381e; }
+html.dark .platform-shell :is(.bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100):not([class*="dark:bg-"]) { background-color: #4b2733; }
+html.dark .platform-shell :is(.bg-purple-50, .bg-purple-50\/60, .bg-purple-50\/70, .bg-purple-100, .bg-violet-50, .bg-violet-100, .bg-indigo-50, .bg-indigo-100):not([class*="dark:bg-"]) { background-color: #342b50; }
+html.dark .platform-shell :is(.text-blue-900, .text-blue-800, .text-blue-700, .text-blue-600, .text-sky-700, .text-sky-600):not([class*="dark:text-"]) { color: #93c5fd; }
+html.dark .platform-shell :is(.text-emerald-900, .text-emerald-800, .text-emerald-700, .text-emerald-600, .text-green-800, .text-green-700, .text-green-600):not([class*="dark:text-"]) { color: #6ee7b7; }
+html.dark .platform-shell :is(.text-amber-900, .text-amber-800, .text-amber-700, .text-amber-600, .text-yellow-800, .text-yellow-700, .text-orange-700, .text-orange-600):not([class*="dark:text-"]) { color: #fcd37a; }
+html.dark .platform-shell :is(.text-red-900, .text-red-800, .text-red-700, .text-red-600, .text-rose-800, .text-rose-700, .text-rose-600):not([class*="dark:text-"]) { color: #fda4af; }
+html.dark .platform-shell :is(.text-purple-800, .text-purple-700, .text-purple-600, .text-violet-700, .text-violet-600, .text-indigo-700, .text-indigo-600):not([class*="dark:text-"]) { color: #c4b5fd; }
+html.dark .platform-shell :is(.border-blue-100, .border-blue-200, .border-emerald-100, .border-emerald-200, .border-amber-100, .border-amber-200, .border-red-100, .border-red-200, .border-rose-100, .border-rose-200, .border-purple-200):not([class*="dark:border-"]) { border-color: #465b75; }
+
+html.dark .platform-shell :is(input, select, textarea)::placeholder { color: #9aacc1; opacity: 1; }
+html.dark .platform-shell :is(input, select, textarea):focus { outline-color: #60a5fa; }
+html.dark .platform-shell :is(.hover\:bg-slate-50, .hover\:bg-slate-100, .hover\:bg-gray-50):not([class*="dark:hover:bg-"]):hover { background-color: #304158; }
+html.dark .platform-shell :is(.hover\:bg-blue-50, .hover\:bg-blue-100):not([class*="dark:hover:bg-"]):hover { background-color: #234a76; }
+html.dark .platform-shell :is(.hover\:text-slate-900, .hover\:text-slate-800):not([class*="dark:hover:text-"]):hover { color: #fff; }
+html.dark .platform-shell .recharts-cartesian-axis-tick-value { fill: #bfccdc; }
+html.dark .platform-shell .recharts-cartesian-grid line { stroke: #405167; }
+html.dark .platform-shell .recharts-default-tooltip { background: #18263a !important; border-color: #52647b !important; color: #f1f5f9 !important; }
+html.dark .platform-shell .recharts-tooltip-label { color: #f1f5f9; }
+html.dark .platform-shell .recharts-wrapper [stroke="#0f172a"],
+html.dark .platform-shell .recharts-wrapper [fill="#0f172a"] { stroke: #cbd5e1; fill: #cbd5e1; }
+
 /* Leaflet map container fix */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  z-index: 10 !important;
+  z-index: 0;
   font-family: inherit;
 }
 

@@ -57,7 +57,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = '',
   size = 'md',
   rounded = 'xl',
-  alt = '',
+  alt,
 }) => {
   const [hasError, setHasError] = useState(false);
 
@@ -70,6 +70,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   const roundClass = roundedClasses[rounded] || roundedClasses.xl;
   const gradientClass = getGradient(name);
   const initials = getInitials(name);
+  const accessibleName = alt === undefined ? name : alt;
 
   // Normalize image source path
   const normalizedSrc = src
@@ -82,7 +83,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     return (
       <div
         className={`bg-gradient-to-br ${gradientClass} ${sizeClass} ${roundClass} flex items-center justify-center font-bold select-none shrink-0 border border-white/20 shadow-xs ${className}`}
-        aria-label={alt || name}
+        aria-label={accessibleName || undefined}
+        aria-hidden={accessibleName ? undefined : true}
       >
         <span>{initials}</span>
       </div>
@@ -92,7 +94,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   return (
     <img
       src={normalizedSrc}
-      alt={alt || name}
+      alt={accessibleName}
       onError={() => setHasError(true)}
       className={`${sizeClass} ${roundClass} object-cover shrink-0 border border-slate-200/80 shadow-xs ${className}`}
       loading="lazy"

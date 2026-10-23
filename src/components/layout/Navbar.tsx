@@ -146,6 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
 
   const isCheckedIn = !!todayAttendance;
   const isCheckedOut = !!todayAttendance?.checkOutTime;
+  const tracksAttendance = currentUser.roleId !== 'co_founder';
   const canViewGeofenceTelemetry = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
   const [timerNow, setTimerNow] = useState(() => Date.now());
 
@@ -194,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
 
         {/* Center: Live Attendance Chip & Quick Actions */}
         <div className="hidden md:flex items-center gap-2">
-          {isCheckedIn && !isCheckedOut ? (
+          {tracksAttendance && (isCheckedIn && !isCheckedOut ? (
             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -227,7 +228,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
               <Clock className="w-3.5 h-3.5" />
               <span>{t('checkIn')}</span>
             </button>
-          )}
+          ))}
 
           {/* Office Geofence Status Pill */}
           {canViewGeofenceTelemetry && <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium border border-slate-200">
@@ -338,9 +339,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
 
             {showNotifMenu && (
               <div
-                className={`absolute ${
-                  isRtl ? 'left-0' : 'right-0'
-                } fixed inset-x-3 top-[4rem] mt-0 w-auto max-w-none bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in sm:absolute sm:top-auto sm:inset-x-auto sm:mt-2 sm:w-[calc(100vw-1.5rem)] sm:max-w-96`}
+                className={`fixed inset-x-3 top-16 max-h-[calc(100dvh-5rem)] overflow-hidden bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 animate-in fade-in sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:max-h-[min(32rem,calc(100dvh-5rem))] sm:w-96 ${isRtl ? 'sm:left-0' : 'sm:right-0'}`}
               >
                 <div className="px-4 pb-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -453,6 +452,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onOpenCheckOutM
               <UserAvatar
                 src={currentUser.avatarUrl}
                 name={isRtl ? currentUser.nameAr : currentUser.nameEn}
+                alt=""
                 size="sm"
                 rounded="full"
               />

@@ -22,7 +22,6 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Lock,
-  Cpu,
   History,
   Building,
   Globe,
@@ -57,7 +56,6 @@ export type ActivePage =
   | 'kpi_reports'
   | 'reports_center'
   | 'roles_matrix'
-  | 'automations'
   | 'audit_logs'
   | 'company_settings';
 
@@ -78,11 +76,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t, isRtl, language, setLanguage } = useLanguage();
 
   const isPlatformAdmin = isFullAccessUser;
-  const canViewTeamOperations = isFullAccessUser;
+  const isReadOnlyObserver = currentUser.roleId === 'co_founder';
+  const canViewTeamOperations = isFullAccessUser || isReadOnlyObserver;
   // Leave authority is department-specific; platform-wide access must not make
   // a leader an approver for every employee.
   const canApproveLeave = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
-  const canViewPeopleDirectory = isPlatformAdmin;
+  const canViewPeopleDirectory = isPlatformAdmin || isReadOnlyObserver;
   const canManageSettings = isPlatformAdmin;
   const canViewTasks = hasPermission('tasks', 'view');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -107,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleEn: 'Attendance & GIS Zones',
       titleAr: 'الحضور والنطاقات الجغرافية',
       items: [
-        { id: 'attendance_my' as ActivePage, label: t('navMyAttendance'), icon: Clock, show: true },
+        { id: 'attendance_my' as ActivePage, label: t('navMyAttendance'), icon: Clock, show: !isReadOnlyObserver },
         { id: 'attendance_team' as ActivePage, label: t('navTeamAttendance'), icon: CalendarCheck, show: canViewTeamOperations },
         { id: 'geofence_settings' as ActivePage, label: t('navGeofenceSettings'), icon: MapPin, show: canManageSettings },
         { id: 'schedules' as ActivePage, label: t('navSchedules'), icon: Calendar, show: canManageSettings },
@@ -127,28 +126,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleEn: 'Leaves & Permissions',
       titleAr: 'الإجازات والاعتماد الثنائي',
       items: [
-        { id: 'leaves_requests' as ActivePage, label: t('navLeaveRequests'), icon: FileText, show: true },
-        { id: 'leaves_balances' as ActivePage, label: t('navLeaveBalances'), icon: Wallet, show: true },
+        { id: 'leaves_requests' as ActivePage, label: t('navLeaveRequests'), icon: FileText, show: !isReadOnlyObserver },
+        { id: 'leaves_balances' as ActivePage, label: t('navLeaveBalances'), icon: Wallet, show: !isReadOnlyObserver },
         { id: 'leaves_dual_approval' as ActivePage, label: isRtl ? 'مركز اعتماد القسم' : 'Department Approval Center', icon: ShieldCheck, show: canApproveLeave },
-        { id: 'leaves_wfh_field' as ActivePage, label: t('navWfhField'), icon: Send, show: currentUser.roleId !== 'gis_specialist' && currentUser.roleId !== 'rs_specialist' },
+        { id: 'leaves_wfh_field' as ActivePage, label: t('navWfhField'), icon: Send, show: !isReadOnlyObserver && currentUser.roleId !== 'gis_specialist' && currentUser.roleId !== 'rs_specialist' },
       ],
     },
     {
       titleEn: 'KPI & Performance',
       titleAr: 'تقييم الأداء KPI',
       items: [
-        { id: 'kpi_my' as ActivePage, label: t('navMyKPI'), icon: Award, show: true },
-        { id: 'kpi_team' as ActivePage, label: t('navTeamKPI'), icon: Sliders, show: isPlatformAdmin },
-        { id: 'kpi_reports' as ActivePage, label: t('navKPIReports'), icon: TrendingUp, show: isPlatformAdmin },
+        { id: 'kpi_my' as ActivePage, label: t('navMyKPI'), icon: Award, show: !isReadOnlyObserver },
+        { id: 'kpi_team' as ActivePage, label: t('navTeamKPI'), icon: Sliders, show: canViewTeamOperations },
+        { id: 'kpi_reports' as ActivePage, label: t('navKPIReports'), icon: TrendingUp, show: canViewTeamOperations },
       ],
     },
     {
       titleEn: 'Reports & Governance',
       titleAr: 'التقارير والإدارة النظامية',
       items: [
-        { id: 'reports_center' as ActivePage, label: t('navReports'), icon: FileSpreadsheet, show: isPlatformAdmin },
+        { id: 'reports_center' as ActivePage, label: t('navReports'), icon: FileSpreadsheet, show: canViewTeamOperations },
         { id: 'roles_matrix' as ActivePage, label: t('navRolesPerms'), icon: Lock, show: isPlatformAdmin },
-        { id: 'automations' as ActivePage, label: t('navAutomations'), icon: Cpu, show: isPlatformAdmin },
         { id: 'audit_logs' as ActivePage, label: t('navAuditLogs'), icon: History, show: isPlatformAdmin },
         { id: 'company_settings' as ActivePage, label: t('navSettings'), icon: Building, show: isPlatformAdmin },
       ],

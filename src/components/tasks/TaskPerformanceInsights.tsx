@@ -37,6 +37,7 @@ import { exportToCSV } from '../../utils/exportUtils';
 
 interface TaskPerformanceInsightsProps {
   embeddedInDashboard?: boolean;
+  allowExport?: boolean;
 }
 
 const FALLBACK_PROJECT_LABEL = 'Untitled project';
@@ -113,6 +114,7 @@ const ProjectAxisTick = ({
 
 export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = ({
   embeddedInDashboard = false,
+  allowExport = true,
 }) => {
   const { tasks } = useData();
   const { t, isRtl } = useLanguage();
@@ -122,12 +124,15 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
   const [chartWidth, setChartWidth] = useState(0);
 
   // Filter tasks based on selected controls
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      const matchDept = selectedDeptFilter === 'all' || t.departmentId === selectedDeptFilter;
-      return matchDept;
-    });
-  }, [tasks, selectedDeptFilter]);
+  const filteredTasks = useMemo(() => tasks.filter((task) => {
+    const matchDepartment = selectedDeptFilter === 'all' || task.departmentId === selectedDeptFilter;
+    if (!matchDepartment) return false;
+    if (timeframe === 'all') return true;
+    const activityDate = new Date(task.lastStatusChangedAt || task.completedAt || task.startDate || task.dueDate);
+    if (Number.isNaN(activityDate.getTime())) return false;
+    const quarterStart = timeframe === 'q3' ? 6 : 9;
+    return activityDate.getMonth() >= quarterStart && activityDate.getMonth() < quarterStart + 3;
+  }), [tasks, selectedDeptFilter, timeframe]);
 
   // 1. Task Completion Rates per Project
   const projectCompletionData = useMemo(() => {
@@ -147,7 +152,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
     > = {};
 
     filteredTasks.forEach((task) => {
-      const pName = task.projectName || FALLBACK_PROJECT_LABEL;
+      const pName = task.projectName || (isRtl ? 'مشروع غير مسمى' : FALLBACK_PROJECT_LABEL);
       if (!projectMap[pName]) {
         const displayName = getProjectLabel(task.projectName);
         projectMap[pName] = {
@@ -165,7 +170,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
 
       projectMap[pName].total += 1;
       if (task.status === 'completed') projectMap[pName].completed += 1;
-      else if (task.status === 'in_progress') projectMap[pName].inProgress += 1;
+      else if (['in_progress', 'blocked', 'needs_revision'].includes(task.status)) projectMap[pName].inProgress += 1;
       else if (task.status === 'submitted') projectMap[pName].submitted += 1;
       else if (task.status === 'overdue') projectMap[pName].overdue += 1;
     });
@@ -174,7 +179,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
       ...item,
       completionRate: Math.round((item.completed / Math.max(1, item.total)) * 100),
     }));
-  }, [filteredTasks]);
+  }, [filteredTasks, isRtl]);
 
   // Keep labels legible on compact cards: mobile shows a representative subset
   // of evenly spaced projects while tooltips/table retain every full project name.
@@ -202,7 +207,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
     > = {};
 
     filteredTasks.forEach((task) => {
-      const pName = task.projectName || FALLBACK_PROJECT_LABEL;
+      const pName = task.projectName || (isRtl ? 'مشروع غير مسمى' : FALLBACK_PROJECT_LABEL);
       if (!projectTimeMap[pName]) {
         const displayName = getProjectLabel(task.projectName);
         projectTimeMap[pName] = {
@@ -237,7 +242,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
         actualHours: Math.round(p.actualTotalHours / Math.max(1, p.taskCount)),
       };
     });
-  }, [filteredTasks]);
+  }, [filteredTasks, isRtl]);
 
   // 3. Workload Distribution by Department
   const departmentWorkloadData = useMemo(() => {
@@ -311,19 +316,17 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
   const avgTurnaroundDays =
     turnaroundData.length > 0
       ? (turnaroundData.reduce((acc, p) => acc + p.actualDays, 0) / turnaroundData.length).toFixed(1)
-      : '4.2';
+      : '0';
+  const averageReviewScore = useMemo(() => {
+    const reviewed = filteredTasks.filter((task) => typeof task.reviewScore === 'number');
+    if (!reviewed.length) return null;
+    return Math.round(reviewed.reduce((total, task) => total + (task.reviewScore || 0), 0) / reviewed.length);
+  }, [filteredTasks]);
 
   const handleExportInsightsCSV = () => {
-    const headers = [
-      'Project Name',
-      'Total Tasks',
-      'Completed Tasks',
-      'In Progress Tasks',
-      'Completion Rate (%)',
-      'Target Turnaround (Days)',
-      'Actual Turnaround (Days)',
-      'Turnaround Variance (Days)',
-    ];
+    const headers = isRtl
+      ? ['اسم المشروع', 'إجمالي المهام', 'المهام المكتملة', 'المهام قيد التنفيذ', 'نسبة الإنجاز (%)', 'المدة المستهدفة (أيام)', 'المدة الفعلية (أيام)', 'فرق المدة (أيام)']
+      : ['Project Name', 'Total Tasks', 'Completed Tasks', 'In Progress Tasks', 'Completion Rate (%)', 'Target Turnaround (Days)', 'Actual Turnaround (Days)', 'Turnaround Variance (Days)'];
 
     const rows = projectCompletionData.map((proj) => {
       const timeInfo = turnaroundData.find((t) => t.projectName === proj.projectName);
@@ -339,7 +342,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
       ];
     });
 
-    exportToCSV(`Geoinformatics_Task_Performance_Insights_${new Date().toISOString().split('T')[0]}`, headers, rows);
+    exportToCSV(`${isRtl ? 'تحليلات_أداء_المهام' : 'Geoinformatics_Task_Performance_Insights'}_${new Date().toISOString().split('T')[0]}`, headers, rows);
   };
 
   return (
@@ -353,7 +356,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
               {isRtl ? 'تحليلات ومؤشرات أداء مهام المشاريع' : 'Task Performance Insights'}
             </h2>
             <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
-              Manager & Executive View
+              {isRtl ? 'عرض الإدارة والقيادة' : 'Manager & Executive View'}
             </span>
           </div>
           <p className="text-xs text-slate-500">
@@ -368,6 +371,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
+              aria-label={isRtl ? 'تصفية حسب القسم' : 'Filter by department'}
               value={selectedDeptFilter}
               onChange={(e) => setSelectedDeptFilter(e.target.value)}
               className="bg-transparent text-slate-700 font-semibold focus:outline-hidden"
@@ -389,7 +393,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                 timeframe === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
               }`}
             >
-              YTD 2026
+              {isRtl ? 'من بداية السنة' : 'Year to date'}
             </button>
             <button
               onClick={() => setTimeframe('q3')}
@@ -397,7 +401,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                 timeframe === 'q3' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
               }`}
             >
-              Q3
+              {isRtl ? 'الربع الثالث' : 'Q3'}
             </button>
             <button
               onClick={() => setTimeframe('q4')}
@@ -405,17 +409,17 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                 timeframe === 'q4' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
               }`}
             >
-              Q4
+              {isRtl ? 'الربع الرابع' : 'Q4'}
             </button>
           </div>
 
-          <button
+          {allowExport && <button
             onClick={handleExportInsightsCSV}
             className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 transition flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5" />
             <span>{t('exportCsv')}</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -430,11 +434,11 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900">{overallCompletionRate}%</span>
             <span className="text-xs text-emerald-600 font-bold flex items-center">
-              <ArrowUpRight className="w-3 h-3" /> +5.4%
+              {isRtl ? 'من المهام المحددة' : 'of filtered tasks'}
             </span>
           </div>
           <span className="text-[11px] text-slate-400 block">
-            {completedTasksCount} of {totalTasksCount} tasks completed
+            {isRtl ? `${completedTasksCount} من ${totalTasksCount} مهام مكتملة` : `${completedTasksCount} of ${totalTasksCount} tasks completed`}
           </span>
         </div>
 
@@ -448,8 +452,8 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
             <span className="text-2xl font-black text-slate-900">{avgTurnaroundDays}</span>
             <span className="text-xs text-slate-500 font-medium">{isRtl ? 'أيام عمل' : 'working days'}</span>
           </div>
-          <span className="text-[11px] text-emerald-600 font-semibold block">
-            0.6 days ahead of schedule
+          <span className="text-[11px] text-slate-400 block">
+            {isRtl ? 'محسوب من الوقت المسجل للمهام المعروضة' : 'Calculated from logged time for displayed tasks'}
           </span>
         </div>
 
@@ -461,10 +465,10 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900">{totalWorkloadHours}</span>
-            <span className="text-xs text-slate-500 font-medium">person-hours</span>
+            <span className="text-xs text-slate-500 font-medium">{isRtl ? 'ساعة عمل' : 'person-hours'}</span>
           </div>
           <span className="text-[11px] text-slate-400 block">
-            Across {departmentWorkloadData.length} technical divisions
+            {isRtl ? `عبر ${departmentWorkloadData.length} أقسام فنية` : `Across ${departmentWorkloadData.length} technical divisions`}
           </span>
         </div>
 
@@ -475,11 +479,11 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
             <TrendingUp className="w-4 h-4 text-amber-500" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">96.2%</span>
-            <span className="text-xs text-blue-600 font-bold">Grade A+</span>
+            <span className="text-2xl font-black text-slate-900">{averageReviewScore === null ? '—' : `${averageReviewScore}%`}</span>
+            <span className="text-xs text-blue-600 font-bold">{isRtl ? 'تقييم الاعتماد' : 'Review score'}</span>
           </div>
           <span className="text-[11px] text-slate-400 block">
-            Manager verification score
+            {isRtl ? (averageReviewScore === null ? 'لا توجد مهام معتمدة بتقييم في الفترة المحددة' : 'متوسط تقييمات الاعتماد المسجلة') : (averageReviewScore === null ? 'No scored approvals in this period' : 'Average recorded approval score')}
           </span>
         </div>
       </div>
@@ -498,11 +502,11 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
               </p>
             </div>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-              Deliverables
+              {isRtl ? 'المخرجات' : 'Deliverables'}
             </span>
           </div>
 
-          <div className="h-80 w-full min-w-0 pt-2" aria-label="Project delivery rate chart">
+          <div className="h-80 w-full min-w-0 pt-2" role="img" aria-label={isRtl ? 'مخطط معدلات تسليم المشاريع' : 'Project delivery rate chart'}>
             <ResponsiveContainer
               width="100%"
               height="100%"
@@ -548,16 +552,16 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                     fontSize: '12px',
                   }}
                   formatter={(value: any, name: any) => {
-                    if (name === 'Completion Rate') return [`${value}%`, name];
+                    if (name === (isRtl ? 'نسبة الإنجاز' : 'Completion Rate')) return [`${value}%`, name];
                     return [value, name];
                   }}
-                  labelFormatter={(label) => `Project: ${label}`}
+                  labelFormatter={(label) => `${isRtl ? 'المشروع' : 'Project'}: ${label}`}
                 />
                 <Legend verticalAlign="top" align="right" height={24} wrapperStyle={{ fontSize: '11px' }} />
                 <Bar
                   yAxisId="left"
                   dataKey="completed"
-                  name="Completed Tasks"
+                  name={isRtl ? 'المهام المكتملة' : 'Completed Tasks'}
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
                   barSize={18}
@@ -565,7 +569,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                 <Bar
                   yAxisId="left"
                   dataKey="inProgress"
-                  name="In Progress"
+                  name={isRtl ? 'قيد التنفيذ' : 'In Progress'}
                   fill="#3b82f6"
                   radius={[4, 4, 0, 0]}
                   barSize={18}
@@ -574,7 +578,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                   yAxisId="right"
                   type="monotone"
                   dataKey="completionRate"
-                  name="Completion Rate"
+                  name={isRtl ? 'نسبة الإنجاز' : 'Completion Rate'}
                   stroke="#f59e0b"
                   strokeWidth={3}
                   dot={{ r: 4, fill: '#f59e0b' }}
@@ -596,11 +600,11 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
               </p>
             </div>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
-              Efficiency
+              {isRtl ? 'الكفاءة' : 'Efficiency'}
             </span>
           </div>
 
-          <div className="h-80 w-full min-w-0 pt-2" aria-label="Project turnaround time chart">
+          <div className="h-80 w-full min-w-0 pt-2" role="img" aria-label={isRtl ? 'مخطط زمن إنجاز المشاريع' : 'Project turnaround time chart'}>
             <ResponsiveContainer
               width="100%"
               height="100%"
@@ -621,7 +625,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: '#64748b' }}
-                  unit="d"
+                  unit={isRtl ? 'ي' : 'd'}
                   width={38}
                   tickLine={false}
                   axisLine={false}
@@ -634,20 +638,20 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                     color: '#f8fafc',
                     fontSize: '12px',
                   }}
-                  formatter={(value: any, name: any) => [`${value} days`, name]}
-                  labelFormatter={(label) => `Project: ${label}`}
+                  formatter={(value: any, name: any) => [`${value} ${isRtl ? 'يوم' : 'days'}`, name]}
+                  labelFormatter={(label) => `${isRtl ? 'المشروع' : 'Project'}: ${label}`}
                 />
                 <Legend verticalAlign="top" align="right" height={24} wrapperStyle={{ fontSize: '11px' }} />
                 <Bar
                   dataKey="estimatedDays"
-                  name="Target Turnaround (Days)"
+                  name={isRtl ? 'المدة المستهدفة (أيام)' : 'Target Turnaround (Days)'}
                   fill="#94a3b8"
                   radius={[4, 4, 0, 0]}
                   barSize={16}
                 />
                 <Bar
                   dataKey="actualDays"
-                  name="Actual Turnaround (Days)"
+                  name={isRtl ? 'المدة الفعلية (أيام)' : 'Actual Turnaround (Days)'}
                   fill="#2563eb"
                   radius={[4, 4, 0, 0]}
                   barSize={16}
@@ -670,7 +674,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
               </h3>
             </div>
             <span className="text-xs text-slate-400 font-mono">
-              {totalWorkloadHours}h total
+              {isRtl ? `الإجمالي ${totalWorkloadHours} ساعة` : `${totalWorkloadHours}h total`}
             </span>
           </div>
 
@@ -699,7 +703,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                     color: '#f8fafc',
                     fontSize: '12px',
                   }}
-                  formatter={(value: any, name: any) => [`${value} hours`, name]}
+                  formatter={(value: any, name: any) => [`${value} ${isRtl ? 'ساعة' : 'hours'}`, name]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -721,7 +725,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                     </span>
                   </div>
                   <div className="flex items-center gap-2 font-mono text-[11px] shrink-0">
-                    <span className="text-slate-500">{dept.totalHours}h</span>
+                    <span className="text-slate-500">{dept.totalHours}{isRtl ? 'س' : 'h'}</span>
                     <span className="font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded-md">
                       {pct}%
                     </span>
@@ -742,7 +746,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
               </h3>
             </div>
             <span className="text-xs text-slate-400">
-              {projectCompletionData.length} Active Spatial Initiatives
+              {isRtl ? `${projectCompletionData.length} مبادرات مكانية نشطة` : `${projectCompletionData.length} Active Spatial Initiatives`}
             </span>
           </div>
 
@@ -752,9 +756,9 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                 <tr>
                   <th className="p-3 text-start">{t('projectName')}</th>
                   <th className="p-3 text-start">{t('progress')}</th>
-                  <th className="p-3 text-start">Target (Days)</th>
-                  <th className="p-3 text-start">Actual (Days)</th>
-                  <th className="p-3 text-start">Turnaround Variance</th>
+                  <th className="p-3 text-start">{isRtl ? 'المستهدف (أيام)' : 'Target (Days)'}</th>
+                  <th className="p-3 text-start">{isRtl ? 'الفعلي (أيام)' : 'Actual (Days)'}</th>
+                  <th className="p-3 text-start">{isRtl ? 'فرق زمن الإنجاز' : 'Turnaround Variance'}</th>
                   <th className="p-3 text-start">{t('status')}</th>
                 </tr>
               </thead>
@@ -779,9 +783,9 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                           </div>
                         </div>
                       </td>
-                      <td className="p-3 font-mono">{time?.estimatedDays ?? 5}d</td>
+                      <td className="p-3 font-mono">{time?.estimatedDays ?? 5}{isRtl ? 'ي' : 'd'}</td>
                       <td className="p-3 font-mono font-bold text-slate-900">
-                        {time?.actualDays ?? 4.2}d
+                        {time?.actualDays ?? 4.2}{isRtl ? 'ي' : 'd'}
                       </td>
                       <td className="p-3">
                         <span
@@ -794,7 +798,7 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                           ) : (
                             <ArrowUpRight className="w-3.5 h-3.5" />
                           )}
-                          {Math.abs(time?.varianceDays ?? 0.5)}d {isAhead ? 'faster' : 'lag'}
+                          {Math.abs(time?.varianceDays ?? 0.5)}{isRtl ? 'ي' : 'd'} {isRtl ? (isAhead ? 'أسرع' : 'تأخير') : (isAhead ? 'faster' : 'lag')}
                         </span>
                       </td>
                       <td className="p-3">
@@ -808,8 +812,8 @@ export const TaskPerformanceInsights: React.FC<TaskPerformanceInsightsProps> = (
                           }`}
                         >
                           {proj.completionRate === 100
-                            ? 'Delivered'
-                            : `${proj.completed}/${proj.total} Done`}
+                            ? (isRtl ? 'تم التسليم' : 'Delivered')
+                            : (isRtl ? `${proj.completed}/${proj.total} مكتمل` : `${proj.completed}/${proj.total} Done`)}
                         </span>
                       </td>
                     </tr>

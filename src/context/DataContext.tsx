@@ -28,8 +28,9 @@ import {
   INITIAL_AUDIT_LOGS,
   INITIAL_USERS,
 } from '../data/seedData';
-import { evaluateGeofence, calculateHaversineDistanceMeters } from '../utils/geoUtils';
+import { evaluateGeofence, calculateHaversineDistanceMeters, getCurrentCoordinates } from '../utils/geoUtils';
 import { canSubmitOwnLeave, getLeaveApprovers } from '../utils/leavePolicy';
+import { buildTaskStageNotification, canTransitionTask, TASK_STAGE_META } from '../utils/taskWorkflow';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -64,10 +65,13 @@ interface DataContextType {
   createTask: (task: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => Promise<{ ok: boolean; message?: string }>;
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
-  toggleSubtask: (taskId: string, subtaskId: string) => void;
-  addTaskComment: (taskId: string, content: string) => void;
-  reviewTask: (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => void;
+  updateTaskStatus: (taskId: string, status: TaskStatus, note?: string) => Promise<{ ok: boolean; message?: string }>;
+  toggleSubtask: (taskId: string, subtaskId: string) => Promise<{ ok: boolean; message?: string }>;
+  addTaskSubtask: (taskId: string, title: string) => void;
+  addTaskAttachment: (taskId: string, name: string, url: string) => void;
+  logTaskTime: (taskId: string, hours: number) => void;
+  addTaskComment: (taskId: string, content: string) => Promise<{ ok: boolean; message?: string }>;
+  reviewTask: (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => Promise<{ ok: boolean; message?: string }>;
   // KPI
   kpiRecords: MonthlyKPIRecord[];
   updateKPIRecord: (record: MonthlyKPIRecord) => void;
@@ -81,9 +85,6 @@ interface DataContextType {
   refreshCompanyData: () => Promise<{ ok: boolean; message?: string }>;
   isSyncing: boolean;
   lastSyncedAt?: string;
-  // Automations
-  runAutomations: () => string[];
-  lastAutomationRun: string;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -232,18 +233,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
   });
 
-  const [lastAutomationRun, setLastAutomationRun] = useState<string>(new Date().toISOString());
-
   type CloudKind = 'attendance' | 'zone' | 'schedule' | 'holiday' | 'leave_request' | 'leave_balance' | 'task' | 'kpi' | 'notification' | 'audit';
   type CloudDocument = { kind: CloudKind; document_id: string; owner_id: string | null; payload: unknown };
+  const allCloudKinds: CloudKind[] = ['attendance', 'zone', 'schedule', 'holiday', 'leave_request', 'leave_balance', 'task', 'kpi', 'notification', 'audit'];
+  const cloudSnapshots = useRef(new Map<CloudKind, Map<string, string>>());
+
+  const rememberCloudDocuments = (documents: CloudDocument[], replaceKinds = true) => {
+    const kinds = new Set(documents.map((document) => document.kind));
+    if (replaceKinds) kinds.forEach((kind) => cloudSnapshots.current.set(kind, new Map()));
+    documents.forEach((document) => {
+      const byId = cloudSnapshots.current.get(document.kind) || new Map<string, string>();
+      byId.set(document.document_id, JSON.stringify(document.payload));
+      cloudSnapshots.current.set(document.kind, byId);
+    });
+  };
 
   const persistDocuments = (kind: CloudKind, documents: Array<{ id: string; ownerId: string | null; payload: unknown }>) => {
     if (!supabase || !cloudReady || !documents.length) return;
+    const snapshot = cloudSnapshots.current.get(kind);
+    const changed = documents.filter((document) => snapshot?.get(document.id) !== JSON.stringify(document.payload));
+    if (!changed.length) return;
     void supabase.from('company_data_documents').upsert(
-      documents.map((document) => ({ kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload })),
+      changed.map((document) => ({ kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload })),
       { onConflict: 'kind,document_id' }
     ).then(({ error }) => {
       if (error) console.error(`Could not persist ${kind} documents to Supabase`, error.message);
+      else rememberCloudDocuments(changed.map((document) => ({ kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload })), false);
     });
   };
 
@@ -254,7 +269,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       { kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload },
       { onConflict: 'kind,document_id' }
     );
-    return error ? { ok: false, message: error.message } : { ok: true };
+    if (error) return { ok: false, message: error.message };
+    rememberCloudDocuments([{ kind, document_id: document.id, owner_id: document.ownerId, payload: document.payload }], false);
+    return { ok: true };
   };
 
   const retryPendingNotificationDeliveries = async () => {
@@ -287,6 +304,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { ok: false, message: error.message };
     }
     const docs = (data || []) as CloudDocument[];
+    allCloudKinds.forEach((kind) => cloudSnapshots.current.set(kind, new Map()));
+    rememberCloudDocuments(docs);
     const byKind = (kind: CloudKind) => docs.filter((document) => document.kind === kind).map((document) => document.payload);
     const shouldHydrate = docs.length > 0 || !isFullAccessUser;
     if (shouldHydrate) {
@@ -315,30 +334,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void refreshCompanyData();
   }, [currentUser?.id, isFullAccessUser]);
 
-  // Keep operational changes visible on other laptops/browsers without
-  // requiring a page refresh. Polling is used deliberately so this works even
-  // when Supabase Realtime has not been enabled for the table.
+  // Every authorised company update is reflected across open devices. Realtime
+  // is the fast path; a recovery poll covers projects where the publication has
+  // not yet been enabled or a laptop has briefly lost its socket.
   useEffect(() => {
     if (!supabase || !currentUser?.id || !cloudReady) return;
     const client = supabase;
     let cancelled = false;
+    let refreshTimer: number | undefined;
     const refreshOperationalInbox = async () => {
       const { data, error } = await client
         .from('company_data_documents')
-        .select('kind, payload')
-        .in('kind', ['leave_request', 'task', 'notification']);
+        .select('kind, document_id, owner_id, payload')
+        ;
       if (cancelled || error || !data) return;
-      const payloads = (kind: CloudKind) => data.filter((document) => document.kind === kind).map((document) => document.payload);
-      setLeaveRequests(payloads('leave_request') as LeaveRequest[]);
-      setTasks(payloads('task') as Task[]);
-      setNotifications(payloads('notification') as NotificationItem[]);
+      const documents = data as CloudDocument[];
+      allCloudKinds.forEach((kind) => cloudSnapshots.current.set(kind, new Map()));
+      rememberCloudDocuments(documents);
+      const payloads = (kind: CloudKind) => documents.filter((document) => document.kind === kind).map((document) => document.payload);
+      const nextLeaves = payloads('leave_request') as LeaveRequest[];
+      const nextTasks = payloads('task') as Task[];
+      const nextNotifications = payloads('notification') as NotificationItem[];
+      setLeaveRequests((previous) => JSON.stringify(previous) === JSON.stringify(nextLeaves) ? previous : nextLeaves);
+      setTasks((previous) => JSON.stringify(previous) === JSON.stringify(nextTasks) ? previous : nextTasks);
+      setNotifications((previous) => JSON.stringify(previous) === JSON.stringify(nextNotifications) ? previous : nextNotifications);
+      setAttendanceRecords((previous) => { const next = payloads('attendance') as AttendanceRecord[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setGeofenceZones((previous) => { const next = payloads('zone') as GeofenceZone[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setWorkSchedules((previous) => { const next = payloads('schedule') as WorkSchedule[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setHolidays((previous) => { const next = payloads('holiday') as Holiday[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setLeaveBalances((previous) => { const next = payloads('leave_balance') as LeaveBalance[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setKpiRecords((previous) => { const next = payloads('kpi') as MonthlyKPIRecord[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setAuditLogs((previous) => { const next = payloads('audit') as AuditLogItem[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      setLastSyncedAt(new Date().toISOString());
     };
-    const interval = window.setInterval(() => { void refreshOperationalInbox(); }, 6000);
+    const channel = client
+      .channel(`company-data-${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'company_data_documents' }, () => {
+        // Several documents can change in one workflow; coalesce their events
+        // into one RLS-scoped refresh instead of causing a request storm.
+        window.clearTimeout(refreshTimer);
+        refreshTimer = window.setTimeout(() => { void refreshOperationalInbox(); }, 180);
+      })
+      .subscribe();
+    const interval = window.setInterval(() => { void refreshOperationalInbox(); }, 30000);
     const refreshOnReturn = () => {
-      if (document.visibilityState === 'visible') void refreshCompanyData();
+      if (document.visibilityState === 'visible') void refreshOperationalInbox();
     };
     document.addEventListener('visibilitychange', refreshOnReturn);
-    return () => { cancelled = true; window.clearInterval(interval); document.removeEventListener('visibilitychange', refreshOnReturn); };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(refreshTimer);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+      void client.removeChannel(channel);
+    };
   }, [currentUser?.id, cloudReady]);
 
   // Seed data predates Supabase and references legacy employee IDs. Once the
@@ -454,7 +503,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       action,
       module,
       details,
-      ipAddress: '197.38.12.84',
+      ipAddress: 'Not captured by client',
       timestamp: new Date().toISOString(),
     };
     setAuditLogs((prev) => [newLog, ...prev]);
@@ -483,6 +532,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ownerId: newItem.userId === 'all' ? null : newItem.userId,
           payload: newItem,
         });
+    if (result.ok && supabase && newItem.userId !== 'all') {
+      rememberCloudDocuments([{ kind: 'notification', document_id: newItem.id, owner_id: newItem.userId, payload: newItem }]);
+    }
     if (!result.ok) {
       console.error('Could not deliver notification', result.message);
       pendingNotificationDeliveries.current = [...pendingNotificationDeliveries.current.filter((item) => item.id !== newItem.id), newItem];
@@ -506,7 +558,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Auto check-in trigger when user logs in if not checked in today
   useEffect(() => {
-    if (!currentUser || !cloudReady) return;
+    if (!currentUser || !cloudReady || currentUser.roleId === 'co_founder') return;
     const existing = attendanceRecords.find(
       (r) => r.employeeId === currentUser.id && r.date === todayStr
     );
@@ -535,11 +587,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const hours = now.getHours();
     const minutes = now.getMinutes();
 
-    // Default coordinates: if none provided, pick HQ (Cairo)
-    const lat = coords?.latitude ?? 30.0444;
-    const lon = coords?.longitude ?? 31.2357;
-
-    const geofenceResult = evaluateGeofence(lat, lon, geofenceZones);
+    // Never manufacture an office location. Automatic and manual check-in both
+    // request the device position; unavailable location is routed for review.
+    let verifiedCoordinates = coords;
+    let locationError = '';
+    if (!verifiedCoordinates) {
+      try {
+        verifiedCoordinates = await getCurrentCoordinates();
+      } catch (error) {
+        locationError = error instanceof Error ? error.message : 'Location could not be verified.';
+      }
+    }
+    const geofenceResult = verifiedCoordinates
+      ? evaluateGeofence(verifiedCoordinates.latitude, verifiedCoordinates.longitude, geofenceZones)
+      : {
+          isInside: false,
+          distanceMeters: undefined,
+          nearestZone: geofenceZones.find((zone) => zone.isPrimary) || geofenceZones[0],
+        };
 
     // Check if there is an approved WFH or external site leave for current user today
     const activeApprovedLeave = leaveRequests.find(
@@ -566,6 +631,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         status = 'on_leave';
         statusNotes = 'Approved Leave';
       }
+    } else if (!verifiedCoordinates) {
+      status = 'outside_review';
+      statusNotes = `Location unavailable. Attendance requires manager review. ${locationError}`.trim();
     } else if (!geofenceResult.isInside) {
       status = 'outside_review';
       statusNotes = `Outside company geofence zone (${geofenceResult.distanceMeters}m from ${geofenceResult.nearestZone.nameEn}). Requires review.`;
@@ -600,8 +668,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       employeeId: currentUser?.id || 'unknown',
       date: todayStr,
       checkInTime: timeStr,
-      checkInLatitude: lat,
-      checkInLongitude: lon,
+      checkInLatitude: verifiedCoordinates?.latitude,
+      checkInLongitude: verifiedCoordinates?.longitude,
       distanceMeters: geofenceResult.distanceMeters,
       status,
       statusNotes,
@@ -627,7 +695,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAttendanceRecords(nextRecords);
     localStorage.setItem('geo_attendance_data', JSON.stringify(nextRecords));
 
-    logAction('CHECK_IN', 'Attendance', `${currentUser?.nameEn} checked in. Status: ${status}, Distance: ${geofenceResult.distanceMeters}m`);
+    logAction('CHECK_IN', 'Attendance', `${currentUser?.nameEn} checked in. Status: ${status}, Distance: ${geofenceResult.distanceMeters ?? 'unavailable'}m`);
     return newRecord;
   };
 
@@ -1013,6 +1081,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       creatorId: currentUser.id,
       id: `tsk_${Date.now()}`,
       comments: [],
+      lastStatusChangedAt: new Date().toISOString(),
+      stageHistory: [],
       activityLogs: [
         {
           id: `act_${Date.now()}`,
@@ -1029,10 +1099,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isRead: false,
       createdBy: currentUser.id,
         userId: uid,
-        titleEn: 'New GIS Task Assigned',
-        titleAr: 'تكليف بمهمة عمل جغرافية جديدة',
-        messageEn: `You have been assigned to task: "${taskData.title}" under ${taskData.projectName}. Due: ${taskData.dueDate}`,
-        messageAr: `تم تكليفكم بالمهمة: "${taskData.title}" ضمن مشروع ${taskData.projectName}. الموعد: ${taskData.dueDate}`,
+        titleEn: 'New task assigned · Awaiting start',
+        titleAr: 'مهمة جديدة · بانتظار البدء',
+        messageEn: `${currentUser.nameEn} assigned you “${taskData.title}” in ${taskData.projectName || 'General work'}. Priority: ${taskData.priority}. Due: ${taskData.dueDate}. Next: open the task and start work.`,
+        messageAr: `تم تكليفك بمهمة «${taskData.title}» ضمن ${taskData.projectName || 'الأعمال العامة'}. الأولوية: ${taskData.priority}. تاريخ الاستحقاق: ${taskData.dueDate}. الخطوة التالية: افتح المهمة وابدأ العمل.`,
         type: 'task',
         priority: taskData.priority === 'critical' || taskData.priority === 'high' ? 'high' : 'medium',
         actionUrl: `task:${newTask.id}`,
@@ -1053,6 +1123,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : error.message,
         };
       }
+      rememberCloudDocuments([
+        { kind: 'task', document_id: newTask.id, owner_id: newTask.creatorId, payload: newTask },
+        ...taskNotifications.map((notification) => ({
+          kind: 'notification' as const,
+          document_id: notification.id,
+          owner_id: notification.userId,
+          payload: notification,
+        })),
+      ]);
       setTasks((prev) => [newTask, ...prev]);
       const ownNotifications = taskNotifications.filter((notification) => notification.userId === currentUser.id);
       if (ownNotifications.length) setNotifications((prev) => [...ownNotifications, ...prev]);
@@ -1082,118 +1161,172 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isFullAccessUser) return;
     const task = tasks.find((item) => item.id === taskId);
     if (!task) return;
-    setTasks((prev) => prev.map((item) => item.id === taskId ? {
-      ...item,
-      status: 'cancelled',
-      activityLogs: [...item.activityLogs, {
+    void updateTaskStatus(taskId, 'cancelled', 'Archived by an authorised manager; record retained.');
+  };
+
+  const transitionTask = async (taskId: string, newStatus: TaskStatus, note?: string, reviewScore?: number, taskSnapshot?: Task) => {
+    const target = taskSnapshot || tasks.find((task) => task.id === taskId);
+    if (!target) return { ok: false, message: 'Task not found.' };
+    const isParticipant = target.assigneeIds.includes(currentUser.id) || target.creatorId === currentUser.id;
+    if (!isFullAccessUser && !isParticipant) return { ok: false, message: 'You are not authorised to update this task.' };
+    if (!canTransitionTask(target.status, newStatus)) return { ok: false, message: `Invalid workflow transition: ${target.status} → ${newStatus}.` };
+    if (['blocked', 'needs_revision', 'cancelled'].includes(newStatus) && !note?.trim()) return { ok: false, message: 'A reason is required for this stage.' };
+
+    const timestamp = new Date().toISOString();
+    const historyEntry = {
+      id: `stage_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      from: target.status,
+      to: newStatus,
+      actorId: currentUser.id,
+      actorName: currentUser.nameEn,
+      timestamp,
+      note: note?.trim() || undefined,
+    };
+    const recipientIds = new Set<string>();
+    if (['blocked', 'submitted'].includes(newStatus)) {
+      recipientIds.add(target.creatorId);
+      users.filter((user) => user.roleId === 'sys_admin').forEach((user) => recipientIds.add(user.id));
+    } else target.assigneeIds.forEach((id) => recipientIds.add(id));
+    recipientIds.delete(currentUser.id);
+    const deliveries = [...recipientIds].map((recipientId) => buildTaskStageNotification({
+      task: target, from: target.status, to: newStatus, actor: currentUser, recipientId, note,
+    }));
+    let nextTask: Task = {
+      ...target,
+      status: newStatus,
+      progressPercent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? Math.max(10, target.progressPercent) : target.progressPercent,
+      lastStatusChangedAt: timestamp,
+      completedAt: newStatus === 'completed' ? timestamp : target.completedAt,
+      archivedAt: newStatus === 'cancelled' ? timestamp : target.archivedAt,
+      reviewScore: reviewScore ?? target.reviewScore,
+      managerReviewNotes: note ?? target.managerReviewNotes,
+      stageHistory: [...(target.stageHistory || []), historyEntry],
+      activityLogs: [...target.activityLogs, {
         id: `act_${Date.now()}`,
-        userId: currentUser?.id || 'system',
-        action: 'Task archived — retained in company records',
-        timestamp: new Date().toISOString(),
+        userId: currentUser.id,
+        action: `${TASK_STAGE_META[target.status].en} → ${TASK_STAGE_META[newStatus].en}${note ? ` · ${note}` : ''}`,
+        timestamp,
       }],
-    } : item));
-    logAction('TASK_ARCHIVED', 'Tasks', `Archived task "${task.title}"; the record was retained.`);
-  };
-
-  const updateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
-    const target = tasks.find((task) => task.id === taskId);
-    if (!target || (!isFullAccessUser && !target.assigneeIds.includes(currentUser.id) && target.creatorId !== currentUser.id)) return;
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        const progress = newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? Math.max(10, t.progressPercent) : t.progressPercent;
-        return {
-          ...t,
-          status: newStatus,
-          progressPercent: progress,
-          activityLogs: [
-            ...t.activityLogs,
-            {
-              id: `act_${Date.now()}`,
-              userId: currentUser?.id || 'system',
-              action: `Status changed to ${newStatus}`,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-      })
-    );
-    if (newStatus === 'submitted') {
-      const reviewers = Array.from(new Set([target.creatorId, ...users.filter((user) => user.roleId === 'sys_admin').map((user) => user.id)]));
-      reviewers.filter((userId) => userId !== currentUser.id).forEach((userId) => addNotification({
-        userId,
-        titleEn: 'Task submitted for administrator confirmation',
-        titleAr: 'تم إرسال مهمة لاعتماد المسؤول',
-        messageEn: `"${target.title}" was submitted and is waiting for confirmation and KPI rating.`,
-        messageAr: `تم إرسال المهمة «${target.title}» وبانتظار الاعتماد والتقييم ضمن KPI.`,
-        type: 'task', priority: 'high', actionUrl: `task:${taskId}`,
-      }));
+    };
+    if (supabase) {
+      if (!cloudReady) return { ok: false, message: 'Company data is still loading. Please try again.' };
+      const { data, error } = await supabase.rpc('transition_company_task', {
+        task_document_id: taskId,
+        expected_status: target.status,
+        next_status: newStatus,
+        transition_note: note || null,
+        transition_notifications: deliveries,
+        task_review_score: reviewScore ?? null,
+      });
+      if (error) {
+        const missing = error.code === 'PGRST202' || error.message.includes('transition_company_task');
+        return { ok: false, message: missing ? 'Database migration 0020 is required to update task stages safely.' : error.message };
+      }
+      const authoritativeTask = (data as { task?: Task } | null)?.task;
+      if (!authoritativeTask || authoritativeTask.id !== taskId || authoritativeTask.status !== newStatus) {
+        return { ok: false, message: 'The server did not return the authoritative task state. Refresh and try again.' };
+      }
+      nextTask = authoritativeTask;
+      rememberCloudDocuments([
+        { kind: 'task', document_id: nextTask.id, owner_id: nextTask.creatorId, payload: nextTask },
+        ...deliveries.map((notification) => ({ kind: 'notification' as const, document_id: notification.id, owner_id: notification.userId, payload: notification })),
+      ], false);
+    } else if (deliveries.length) {
+      setNotifications((previous) => [...deliveries, ...previous]);
     }
+    setTasks((prev) => prev.map((task) => task.id === taskId ? nextTask : task));
+    deliveries.forEach(dispatchPushNotification);
     logAction('TASK_STATUS_CHANGED', 'Tasks', `Task ${taskId} moved to ${newStatus}`);
+    return { ok: true };
   };
 
-  const toggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        const updatedSubs = t.subtasks.map((s) => (s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s));
-        const completedCount = updatedSubs.filter((s) => s.isCompleted).length;
-        const progress = Math.round((completedCount / updatedSubs.length) * 100);
-        return {
-          ...t,
-          subtasks: updatedSubs,
-          progressPercent: progress,
-          status: progress === 100 ? 'submitted' : t.status,
-        };
-      })
-    );
+  const updateTaskStatus = (taskId: string, newStatus: TaskStatus, note?: string) => transitionTask(taskId, newStatus, note);
+
+  const toggleSubtask = async (taskId: string, subtaskId: string) => {
+    const target = tasks.find((task) => task.id === taskId);
+    if (!target || !target.assigneeIds.includes(currentUser.id)) return { ok: false, message: 'You are not authorised to update this task.' };
+    if (!target.subtasks.some((subtask) => subtask.id === subtaskId)) return { ok: false, message: 'Task step not found. Refresh and try again.' };
+    const updatedSubs = target.subtasks.map((subtask) => subtask.id === subtaskId ? { ...subtask, isCompleted: !subtask.isCompleted } : subtask);
+    const progress = updatedSubs.length ? Math.round((updatedSubs.filter((subtask) => subtask.isCompleted).length / updatedSubs.length) * 100) : 0;
+    const updatedTask = { ...target, subtasks: updatedSubs, progressPercent: progress };
+    if (supabase) {
+      const persisted = await persistDocumentNow('task', { id: updatedTask.id, ownerId: updatedTask.creatorId, payload: updatedTask });
+      if (!persisted.ok) return persisted;
+    }
+    setTasks((previous) => previous.map((task) => task.id === taskId ? updatedTask : task));
+    if (progress === 100 && canTransitionTask(target.status, 'submitted')) {
+      const result = await transitionTask(taskId, 'submitted', undefined, undefined, updatedTask);
+      if (!result.ok) return { ok: false, message: `Step saved, but submission for review failed: ${result.message || 'Please try again.'}` };
+    }
+    return { ok: true };
   };
 
-  const addTaskComment = (taskId: string, content: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        return {
-          ...t,
-          comments: [
-            ...t.comments,
-            {
-              id: `comm_${Date.now()}`,
-              userId: currentUser?.id || 'unknown',
-              content,
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        };
-      })
-    );
+  const addTaskSubtask = (taskId: string, title: string) => {
+    const target = tasks.find((task) => task.id === taskId);
+    if (!target || !title.trim() || (!isFullAccessUser && target.creatorId !== currentUser.id && !target.assigneeIds.includes(currentUser.id))) return;
+    setTasks((previous) => previous.map((task) => task.id === taskId ? {
+      ...task,
+      subtasks: [...task.subtasks, { id: `sub_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, title: title.trim(), isCompleted: false }],
+    } : task));
   };
 
-  const reviewTask = (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => {
-    if (!isFullAccessUser) return;
+  const addTaskAttachment = (taskId: string, name: string, url: string) => {
+    const target = tasks.find((task) => task.id === taskId);
+    if (!target || !name.trim() || !/^https?:\/\//i.test(url.trim()) || (!isFullAccessUser && target.creatorId !== currentUser.id && !target.assigneeIds.includes(currentUser.id))) return;
+    setTasks((previous) => previous.map((task) => task.id === taskId ? {
+      ...task,
+      attachments: [...task.attachments, {
+        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: name.trim(), fileType: 'link', url: url.trim(), uploadedAt: new Date().toISOString(),
+      }],
+    } : task));
+  };
+
+  const logTaskTime = (taskId: string, hours: number) => {
+    const target = tasks.find((task) => task.id === taskId);
+    if (!target || !Number.isFinite(hours) || hours <= 0 || hours > 24 || (!isFullAccessUser && !target.assigneeIds.includes(currentUser.id))) return;
+    const timestamp = new Date().toISOString();
+    setTasks((previous) => previous.map((task) => task.id === taskId ? {
+      ...task,
+      actualHours: Number((task.actualHours + hours).toFixed(2)),
+      activityLogs: [...task.activityLogs, { id: `act_time_${Date.now()}`, userId: currentUser.id, action: `Logged ${hours} working hours`, timestamp }],
+    } : task));
+  };
+
+  const addTaskComment = async (taskId: string, content: string) => {
+    const target = tasks.find((task) => task.id === taskId);
+    const text = content.trim();
+    if (!target || (!isFullAccessUser && target.creatorId !== currentUser.id && !target.assigneeIds.includes(currentUser.id))) return { ok: false, message: 'Not authorised.' };
+    if (!text || text.length > 4000) return { ok: false, message: 'Comment must be between 1 and 4000 characters.' };
+    const commentId = `comm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    if (supabase) {
+      if (!cloudReady) return { ok: false, message: 'Company data is still loading.' };
+      const { data, error } = await supabase.rpc('add_task_comment', { task_document_id: taskId, comment_id: commentId, comment_content: text });
+      if (error) return { ok: false, message: error.code === 'PGRST202' ? 'Database migration 0021 is required to send comments.' : error.message };
+      const saved = data?.task as Task | undefined;
+      if (!saved || saved.id !== taskId) return { ok: false, message: 'The server returned an invalid task.' };
+      const deliveries = (data.notifications || []) as NotificationItem[];
+      rememberCloudDocuments([{ kind: 'task', document_id: saved.id, owner_id: saved.creatorId, payload: saved }, ...deliveries.map((notification) => ({ kind: 'notification' as const, document_id: notification.id, owner_id: notification.userId, payload: notification }))], false);
+      setTasks((prev) => prev.map((task) => task.id === taskId ? saved : task));
+      deliveries.forEach(dispatchPushNotification);
+    } else {
+      setTasks((prev) => prev.map((task) => task.id === taskId ? { ...task, comments: [...task.comments, { id: commentId, userId: currentUser.id, content: text, createdAt: new Date().toISOString() }] } : task));
+    }
+    return { ok: true };
+  };
+
+  const reviewTask = async (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => {
+    if (!isFullAccessUser) return { ok: false, message: 'Only authorised reviewers can review tasks.' };
     const taskToReview = tasks.find((task) => task.id === taskId);
-    if (!taskToReview) return;
+    if (!taskToReview) return { ok: false, message: 'Task not found.' };
     const normalizedScore = Math.max(0, Math.min(100, score ?? 100));
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        return {
-          ...t,
-          status: decision === 'approve' ? 'completed' : 'needs_revision',
-          reviewScore: normalizedScore,
-          managerReviewNotes: notes,
-          activityLogs: [
-            ...t.activityLogs,
-            {
-              id: `act_${Date.now()}`,
-              userId: currentUser?.id || 'manager',
-              action: decision === 'approve' ? `Manager approved completion (Score: ${score || 100}%)` : `Manager requested revision: ${notes}`,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-      })
+    const result = await transitionTask(
+      taskId,
+      decision === 'approve' ? 'completed' : 'needs_revision',
+      notes || (decision === 'revise' ? 'Revision required' : undefined),
+      normalizedScore,
     );
+    if (!result.ok) return result;
     if (decision === 'approve') {
       setKpiRecords((previous) => previous.map((record) => {
         if (!taskToReview.assigneeIds.includes(record.employeeId) || record.evaluatorId !== currentUser.id) return record;
@@ -1202,15 +1335,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { ...record, workScore: { ...record.workScore, scoreOutOfWeight: nextWorkScore, scorePercentage: normalizedScore, managerNotes: notes || `Task review: ${taskToReview.title}` }, totalScore, status: 'published', reviewedBy: currentUser.nameEn, publishedAt: new Date().toISOString() };
       }));
     }
-    taskToReview.assigneeIds.forEach((userId) => addNotification({
-      userId,
-      titleEn: decision === 'approve' ? 'Task confirmed and rated' : 'Task returned for revision',
-      titleAr: decision === 'approve' ? 'تم اعتماد المهمة وتقييمها' : 'تمت إعادة المهمة للمراجعة',
-      messageEn: decision === 'approve' ? `Your task score is ${normalizedScore}% and has been included in your KPI.` : (notes || 'Please review the administrator notes and resubmit.'),
-      messageAr: decision === 'approve' ? `تم تسجيل تقييم ${normalizedScore}% ضمن مؤشر الأداء الخاص بك.` : (notes || 'يرجى مراجعة ملاحظات المسؤول ثم إعادة الإرسال.'),
-      type: 'task', priority: 'high', actionUrl: `task:${taskId}`,
-    }));
     logAction('TASK_REVIEWED', 'Tasks', `Task ${taskId} review result: ${decision}`);
+    return { ok: true };
   };
 
   // KPI Management
@@ -1314,50 +1440,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications((prev) => prev.map((n) => n.userId === currentUser.id || n.userId === 'all' ? { ...n, isRead: true } : n));
   };
 
-  // Automations Engine
-  const runAutomations = (): string[] => {
-    const executed: string[] = [];
-    const now = new Date();
-    const currentDateStr = now.toISOString().split('T')[0];
-
-    // 1. Scan tasks for overdue status
-    let overdueCount = 0;
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.status !== 'completed' && t.status !== 'cancelled' && t.status !== 'overdue') {
-          if (t.dueDate < currentDateStr) {
-            overdueCount++;
-            return { ...t, status: 'overdue' as TaskStatus };
-          }
-        }
-        return t;
-      })
-    );
-    if (overdueCount > 0) {
-      executed.push(`Flagged ${overdueCount} task(s) as Overdue and notified project owners.`);
-    }
-
-    // 2. Check for missing check-outs
-    // If time > 18:00 and active check-in without check-out, flag missing checkout
-    const hour = now.getHours();
-    if (hour >= 18) {
-      executed.push(`Executed end-of-day attendance scan: 2 unclosed attendance session(s) flagged.`);
-    }
-
-    // 3. Scan pending leave requests aging > 48h
-    const agedPending = leaveRequests.filter((r) => r.status === 'pending_approval');
-    if (agedPending.length > 0) {
-      executed.push(`Queued reminders for authorised reviewers on ${agedPending.length} pending leave request(s).`);
-    }
-
-    // 4. KPI monthly auto-aggregation check
-    executed.push(`Recalculated active month KPI weight aggregates for 16 team members.`);
-
-    setLastAutomationRun(now.toISOString());
-    logAction('AUTOMATION_CYCLE_EXECUTED', 'Automations', `Automated jobs executed: ${executed.join('; ')}`);
-    return executed;
-  };
-
   return (
     <DataContext.Provider
       value={{
@@ -1389,6 +1471,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteTask,
         updateTaskStatus,
         toggleSubtask,
+        addTaskSubtask,
+        addTaskAttachment,
+        logTaskTime,
         addTaskComment,
         reviewTask,
         kpiRecords,
@@ -1401,8 +1486,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshCompanyData,
         isSyncing,
         lastSyncedAt,
-        runAutomations,
-        lastAutomationRun,
       }}
     >
       {children}

@@ -42,6 +42,7 @@ import { QuarterType } from '../../utils/kpiQuarterlyExport';
 export interface DepartmentKPITrendsVisualizerProps {
   className?: string;
   onOpenQuarterlyModal?: () => void;
+  allowExport?: boolean;
 }
 
 type ChartViewMode = 'lines' | 'area' | 'bars';
@@ -49,6 +50,7 @@ type ChartViewMode = 'lines' | 'area' | 'bars';
 export const DepartmentKPITrendsVisualizer: React.FC<DepartmentKPITrendsVisualizerProps> = ({
   className = '',
   onOpenQuarterlyModal,
+  allowExport = true,
 }) => {
   const { isRtl } = useLanguage();
   const { kpiRecords } = useData();
@@ -454,7 +456,7 @@ export const DepartmentKPITrendsVisualizer: React.FC<DepartmentKPITrendsVisualiz
           </div>
 
           {/* Quarterly Export Modal Button */}
-          <button
+          {allowExport && <button
             onClick={() => {
               if (onOpenQuarterlyModal) {
                 onOpenQuarterlyModal();
@@ -466,7 +468,7 @@ export const DepartmentKPITrendsVisualizer: React.FC<DepartmentKPITrendsVisualiz
           >
             <FileText className="w-4 h-4" />
             <span>{isRtl ? 'تصدير تقرير الربع (PDF / CSV)' : 'Export Quarterly Report (PDF / CSV)'}</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -853,11 +855,11 @@ export const DepartmentKPITrendsVisualizer: React.FC<DepartmentKPITrendsVisualiz
       </div>
 
       {/* Internal Export Modal fallback */}
-      <QuarterlyReviewExportModal
+      {allowExport && <QuarterlyReviewExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         defaultQuarter="Q3"
-      />
+      />}
     </div>
   );
 };

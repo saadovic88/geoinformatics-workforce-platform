@@ -63,7 +63,6 @@ export const translations = {
     navRolesPerms: 'Roles & Permissions',
     navUserAccounts: 'User Accounts',
     navSettings: 'Company Settings',
-    navAutomations: 'Automations Engine',
     navAuditLogs: 'Audit Logs',
 
     // Auth & Profile
@@ -118,10 +117,10 @@ export const translations = {
     on_leave: 'On Approved Leave',
 
     // Dual Approval Leave System
-    leaveApprovalWorkflow: 'Department approval chain (observer accounts excluded)',
-    approverOmar: 'Eng. Mohamed Omar (View-only observer)',
-    approverGhada: 'Dr. Ghada (View-only observer)',
-    approvalRequirementText: 'Both approvers must approve this request. Immediate rejection if either denies.',
+    leaveApprovalWorkflow: 'Company and department approval path',
+    approverOmar: 'View-only observer',
+    approverGhada: 'View-only observer',
+    approvalRequirementText: 'All assigned approvers must consent. A rejection remains reversible by the same approver.',
     partiallyApprovedMsg: 'Partially Approved – Pending Final Approval',
     fullyApprovedMsg: 'Fully Approved (Balances Deducted & Attendance Synchronized)',
     rejectedMsg: 'Request Rejected',
@@ -192,15 +191,6 @@ export const translations = {
     exportPerm: 'Export',
     managePerm: 'Manage',
 
-    // Automations
-    automationsTitle: 'Automation Engine & Background Tasks',
-    autoCheckInStatus: 'Login Auto Check-in & Geofence Validator',
-    autoCheckOutStatus: 'Logout Auto Check-out & Overtime Calculator',
-    overdueTaskCron: 'Auto-Flag Overdue Tasks Scanner',
-    leaveBalanceDeductor: 'Dual Approval Balance Deductor & Calendar Sync',
-    runAutomationsNow: 'Execute Automation Cycle Now',
-    lastAutomatedRun: 'Last run',
-    activeAutomationsCount: '8 active rules running',
 
     // Notification Center
     unreadNotifications: 'Unread Notifications',
@@ -316,7 +306,6 @@ export const translations = {
     navRolesPerms: 'الأدوار والصلاحيات',
     navUserAccounts: 'حسابات المستخدمين',
     navSettings: 'إعدادات الشركة',
-    navAutomations: 'محرك الأتمتة',
     navAuditLogs: 'سجل العمليات والرقابة',
 
     // Auth & Profile
@@ -371,10 +360,10 @@ export const translations = {
     on_leave: 'إجازة معتمدة',
 
     // Dual Approval Leave System
-    leaveApprovalWorkflow: 'مسار الاعتماد الثنائي الإلزامي (م. محمد عمر و د. غادة)',
-    approverOmar: 'م. محمد عمر (المؤسس المشارك)',
-    approverGhada: 'د. غادة (المؤسس المشارك)',
-    approvalRequirementText: 'يشترط موافقة كلا المؤسسين لاعتماد الطلب نهائياً. يتم الرفض فوراً إذا رفض أحدهما.',
+    leaveApprovalWorkflow: 'مسار اعتماد الإدارة ورئيس القسم',
+    approverOmar: 'مراقب بصلاحية قراءة فقط',
+    approverGhada: 'مراقب بصلاحية قراءة فقط',
+    approvalRequirementText: 'يشترط اعتماد جميع المسؤولين المحددين، ويمكن للمسؤول نفسه التراجع عن قراره لاحقاً.',
     partiallyApprovedMsg: 'موافقة جزئية – في انتظار الموافقة النهائية',
     fullyApprovedMsg: 'معتمد نهائياً (تم خصم الرصيد وتحديث الحضور تلقائياً)',
     rejectedMsg: 'تم رفض الطلب',
@@ -445,15 +434,6 @@ export const translations = {
     exportPerm: 'تصدير',
     managePerm: 'إدارة كاملة',
 
-    // Automations
-    automationsTitle: 'محرك الأتمتة والمهام المجدولة في الخلفية',
-    autoCheckInStatus: 'التحقق التلقائي من الحضور والسياج عند الدخول',
-    autoCheckOutStatus: 'حساب ساعات العمل والانصراف والإضافي عند الخروج',
-    overdueTaskCron: 'الفاحص الدوري للمهام المتأخرة وإرسال التنبيهات',
-    leaveBalanceDeductor: 'خصم الأرصدة ومزامنة الحضور عند الاعتماد الثنائي',
-    runAutomationsNow: 'تشغيل دورة الأتمتة يدوياً الآن',
-    lastAutomatedRun: 'آخر فحص آلي',
-    activeAutomationsCount: '8 قواعد برمجية مؤتمتة تعمل بالخلفية',
 
     // Notification Center
     unreadNotifications: 'الإشعارات غير المقروءة',

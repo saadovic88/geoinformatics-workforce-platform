@@ -32,7 +32,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   onRequestLeave,
   onCreateTask,
 }) => {
-  const { currentUser, hasPermission } = useAuth();
+  const { currentUser, hasPermission, isFullAccessUser } = useAuth();
   const { todayAttendance, checkIn, geofenceZones, tasks, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -62,7 +62,9 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   const isCheckedOut = !!todayAttendance?.checkOutTime;
   const canRequestLeave = canSubmitOwnLeave(currentUser);
   const canCreateTask = hasPermission('tasks', 'create');
-  const canViewGeofenceTelemetry = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
+  // Exact location telemetry is an operational control for the three named
+  // company leaders only; validation continues silently for every employee.
+  const canViewGeofenceTelemetry = isFullAccessUser;
 
   return (
     <div className="space-y-6">
@@ -251,8 +253,8 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
           <div className="flex-1 min-h-[220px]">
             <LeafletMap
               zones={geofenceZones}
-              userLat={todayAttendance?.checkInLatitude ?? 30.0444}
-              userLon={todayAttendance?.checkInLongitude ?? 31.2357}
+              userLat={todayAttendance?.checkInLatitude}
+              userLon={todayAttendance?.checkInLongitude}
               height="230px"
             />
           </div>

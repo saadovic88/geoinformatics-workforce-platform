@@ -23,6 +23,18 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
 
+  // Leaflet calculates tiles before flex/grid cards finish their layout.  A
+  // resize observer keeps the map responsive without repeatedly rebuilding it.
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => mapInstanceRef.current?.invalidateSize({ animate: false }));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -112,20 +124,16 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
       }
     }
 
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 200);
+    requestAnimationFrame(() => map.invalidateSize({ animate: false }));
 
-    return () => {
-      // Keep map reference stable
-    };
+    return undefined;
   }, [zones, userLat, userLon, interactive, onLocationSelect]);
 
   return (
     <div
       ref={mapContainerRef}
       style={{ height, width: '100%' }}
-      className="rounded-xl overflow-hidden border border-slate-200 shadow-inner z-0"
+      className="rounded-xl overflow-hidden border border-slate-200 shadow-inner"
     />
   );
 };

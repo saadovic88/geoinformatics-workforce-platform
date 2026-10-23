@@ -41,8 +41,10 @@ export function evaluateGeofence(
   const activeZones = zones.filter((z) => z.isActive);
   if (activeZones.length === 0) {
     return {
-      isInside: true,
-      distanceMeters: 0,
+      // A missing/disabled policy must fail closed. Treating it as inside the
+      // office would silently turn off attendance verification.
+      isInside: false,
+      distanceMeters: Number.POSITIVE_INFINITY,
       nearestZone: zones[0] || {
         id: 'default',
         nameEn: 'Office',
@@ -82,10 +84,9 @@ export function evaluateGeofence(
  * Retrieves user geolocation safely with support for simulated positions in dev/iframe
  */
 export async function getCurrentCoordinates(): Promise<{ latitude: number; longitude: number }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      // Default to HQ
-      resolve({ latitude: 30.0444, longitude: 31.2357 });
+      reject(new Error('Geolocation is not supported by this device.'));
       return;
     }
 
@@ -97,9 +98,7 @@ export async function getCurrentCoordinates(): Promise<{ latitude: number; longi
         });
       },
       (err) => {
-        console.warn('Browser geolocation denied or unavailable, using Cairo HQ coordinates:', err);
-        // Default inside primary office geofence
-        resolve({ latitude: 30.0444, longitude: 31.2357 });
+        reject(new Error(`Geolocation unavailable (${err.code}).`));
       },
       { timeout: 8000, enableHighAccuracy: true }
     );

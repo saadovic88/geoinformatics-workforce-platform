@@ -7,23 +7,22 @@ import { DataProvider, useData } from './context/DataContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar, ActivePage } from './components/layout/Sidebar';
 import { LoginView } from './components/auth/LoginView';
-import { CheckOutSummaryModal } from './components/attendance/CheckOutSummaryModal';
-
-import { EmployeeDashboard } from './components/dashboards/EmployeeDashboard';
-import { ExecutiveDashboard } from './components/dashboards/ExecutiveDashboard';
-import { EmployeeDirectory } from './components/directory/EmployeeDirectory';
-import { OrgStructureView } from './components/admin/OrgStructureView';
-import { AttendanceDashboard } from './components/attendance/AttendanceDashboard';
-import { GeofenceSettingsView } from './components/admin/GeofenceSettingsView';
-import { SchedulesHolidaysView } from './components/admin/SchedulesHolidaysView';
-import { TasksView } from './components/tasks/TasksView';
-import { LeaveManagement } from './components/leaves/LeaveManagement';
-import { KPIDashboard } from './components/kpi/KPIDashboard';
-import { ReportsCenter } from './components/reports/ReportsCenter';
-import { RolesPermissionsView } from './components/admin/RolesPermissionsView';
-import { AutomationsView } from './components/admin/AutomationsView';
-import { CompanySettingsView } from './components/admin/CompanySettingsView';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
+
+const CheckOutSummaryModal = React.lazy(() => import('./components/attendance/CheckOutSummaryModal').then((module) => ({ default: module.CheckOutSummaryModal })));
+const EmployeeDashboard = React.lazy(() => import('./components/dashboards/EmployeeDashboard').then((module) => ({ default: module.EmployeeDashboard })));
+const ExecutiveDashboard = React.lazy(() => import('./components/dashboards/ExecutiveDashboard').then((module) => ({ default: module.ExecutiveDashboard })));
+const EmployeeDirectory = React.lazy(() => import('./components/directory/EmployeeDirectory').then((module) => ({ default: module.EmployeeDirectory })));
+const OrgStructureView = React.lazy(() => import('./components/admin/OrgStructureView').then((module) => ({ default: module.OrgStructureView })));
+const AttendanceDashboard = React.lazy(() => import('./components/attendance/AttendanceDashboard').then((module) => ({ default: module.AttendanceDashboard })));
+const GeofenceSettingsView = React.lazy(() => import('./components/admin/GeofenceSettingsView').then((module) => ({ default: module.GeofenceSettingsView })));
+const SchedulesHolidaysView = React.lazy(() => import('./components/admin/SchedulesHolidaysView').then((module) => ({ default: module.SchedulesHolidaysView })));
+const TasksView = React.lazy(() => import('./components/tasks/TasksView').then((module) => ({ default: module.TasksView })));
+const LeaveManagement = React.lazy(() => import('./components/leaves/LeaveManagement').then((module) => ({ default: module.LeaveManagement })));
+const KPIDashboard = React.lazy(() => import('./components/kpi/KPIDashboard').then((module) => ({ default: module.KPIDashboard })));
+const ReportsCenter = React.lazy(() => import('./components/reports/ReportsCenter').then((module) => ({ default: module.ReportsCenter })));
+const RolesPermissionsView = React.lazy(() => import('./components/admin/RolesPermissionsView').then((module) => ({ default: module.RolesPermissionsView })));
+const CompanySettingsView = React.lazy(() => import('./components/admin/CompanySettingsView').then((module) => ({ default: module.CompanySettingsView })));
 
 const MainAppContent: React.FC = () => {
   const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary, currentUser, isFullAccessUser, hasPermission } = useAuth();
@@ -80,12 +79,13 @@ const MainAppContent: React.FC = () => {
     />
   );
 
+  const canViewExecutiveMonitoring = isFullAccessUser || currentUser.roleId === 'co_founder';
   const canOpenDepartmentApproval = ['ceo', 'admin_manager', 'tech_manager', 'gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
 
   const renderActiveView = () => {
     switch (activePage) {
       case 'dashboard':
-        if (isFullAccessUser) {
+        if (canViewExecutiveMonitoring) {
           return <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} />;
         }
         return (
@@ -97,20 +97,20 @@ const MainAppContent: React.FC = () => {
           />
         );
       case 'executive':
-        return isFullAccessUser ? <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} /> : adminFallback();
+        return canViewExecutiveMonitoring ? <ExecutiveDashboard onNavigate={(page) => setActivePage(page)} /> : adminFallback();
       case 'directory':
-        return isFullAccessUser ? <EmployeeDirectory /> : <EmployeeDashboard
+        return canViewExecutiveMonitoring ? <EmployeeDirectory /> : <EmployeeDashboard
           onNavigate={(page) => setActivePage(page)}
           onOpenCheckOutModal={() => setManualCheckoutModal(true)}
           onRequestLeave={() => setActivePage('leaves_requests')}
           onCreateTask={() => setActivePage('tasks_kanban')}
         />;
       case 'orgchart':
-        return isFullAccessUser ? <OrgStructureView /> : adminFallback();
+        return canViewExecutiveMonitoring ? <OrgStructureView /> : adminFallback();
       case 'attendance_my':
         return <AttendanceDashboard key={activePage} scope="my" />;
       case 'attendance_team':
-        return isFullAccessUser ? <AttendanceDashboard key={activePage} scope="team" /> : adminFallback();
+        return canViewExecutiveMonitoring ? <AttendanceDashboard key={activePage} scope="team" /> : adminFallback();
       case 'geofence_settings':
         return isFullAccessUser ? <GeofenceSettingsView /> : adminFallback();
       case 'schedules':
@@ -134,17 +134,15 @@ const MainAppContent: React.FC = () => {
       case 'kpi_my':
         return <KPIDashboard key={activePage} initialMode="my" />;
       case 'kpi_team':
-        return isFullAccessUser ? <KPIDashboard key={activePage} initialMode="team" /> : adminFallback();
+        return canViewExecutiveMonitoring ? <KPIDashboard key={activePage} initialMode="team" /> : adminFallback();
       case 'kpi_reports':
-        return isFullAccessUser ? <KPIDashboard key={activePage} initialMode="reports" /> : adminFallback();
+        return canViewExecutiveMonitoring ? <KPIDashboard key={activePage} initialMode="reports" /> : adminFallback();
       case 'reports_center':
-        return isFullAccessUser ? <ReportsCenter key={activePage} /> : adminFallback();
+        return canViewExecutiveMonitoring ? <ReportsCenter key={activePage} /> : adminFallback();
       case 'audit_logs':
         return isFullAccessUser ? <ReportsCenter key={activePage} initialReport="audit" /> : adminFallback();
       case 'roles_matrix':
         return isFullAccessUser ? <RolesPermissionsView /> : adminFallback();
-      case 'automations':
-        return isFullAccessUser ? <AutomationsView /> : adminFallback();
       case 'company_settings':
         return isFullAccessUser ? <CompanySettingsView /> : adminFallback();
       default:
@@ -160,7 +158,7 @@ const MainAppContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
+    <div className="platform-shell flex h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
       {/* Sidebar */}
       <Sidebar
         activePage={activePage}
@@ -180,23 +178,29 @@ const MainAppContent: React.FC = () => {
 
         {/* Scrollable Viewport */}
         <main ref={mainViewportRef} className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-8">
-          <div className="max-w-7xl mx-auto">{renderActiveView()}</div>
+          <div className="max-w-7xl mx-auto">
+            <React.Suspense fallback={<div className="grid min-h-64 place-items-center text-sm font-semibold text-slate-500">Loading…</div>}>
+              {renderActiveView()}
+            </React.Suspense>
+          </div>
         </main>
       </div>
 
       {/* Daily Summary & Check-out Modal (Sign-out automated trigger) */}
-      <CheckOutSummaryModal
-        isOpen={pendingLogoutSummary}
-        onClose={() => setPendingLogoutSummary(false)}
-        isLogoutFlow={true}
-      />
+      <React.Suspense fallback={null}>
+        <CheckOutSummaryModal
+          isOpen={pendingLogoutSummary}
+          onClose={() => setPendingLogoutSummary(false)}
+          isLogoutFlow={true}
+        />
 
-      {/* Manual Check-out Modal */}
-      <CheckOutSummaryModal
-        isOpen={manualCheckoutModal}
-        onClose={() => setManualCheckoutModal(false)}
-        isLogoutFlow={false}
-      />
+        {/* Manual Check-out Modal */}
+        <CheckOutSummaryModal
+          isOpen={manualCheckoutModal}
+          onClose={() => setManualCheckoutModal(false)}
+          isLogoutFlow={false}
+        />
+      </React.Suspense>
     </div>
   );
 };

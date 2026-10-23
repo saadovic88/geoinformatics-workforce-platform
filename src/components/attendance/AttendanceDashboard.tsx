@@ -42,9 +42,11 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
   const [selectedException, setSelectedException] = useState<AttendanceRecord | null>(null);
   const [exceptionNotes, setExceptionNotes] = useState('');
 
+  // Geofence validation runs for every attendance record.  Exact distance and
+  // map telemetry are deliberately limited to the three named company leaders.
   const isExecutive = isFullAccessUser;
-  const isManager = isExecutive || ['gis_manager', 'rs_manager', 'training_manager'].includes(currentUser.roleId);
-  const canViewLocationTelemetry = isManager;
+  const isManager = isExecutive;
+  const canViewLocationTelemetry = isFullAccessUser;
   const allowedEmployeeIds = new Set(
     isExecutive
       ? users.map((user) => user.id)
@@ -164,8 +166,8 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ scope 
 
         <LeafletMap
           zones={geofenceZones}
-          userLat={todayAttendance?.checkInLatitude ?? 30.0444}
-          userLon={todayAttendance?.checkInLongitude ?? 31.2357}
+          userLat={todayAttendance?.checkInLatitude}
+          userLon={todayAttendance?.checkInLongitude}
           height="280px"
         />
       </div>}

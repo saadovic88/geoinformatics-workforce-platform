@@ -209,6 +209,16 @@ export interface TaskActivity {
   timestamp: string;
 }
 
+export interface TaskStageHistoryEntry {
+  id: string;
+  from: TaskStatus;
+  to: TaskStatus;
+  actorId: string;
+  actorName: string;
+  timestamp: string;
+  note?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -232,6 +242,10 @@ export interface Task {
   activityLogs: TaskActivity[];
   reviewScore?: number; // 0-100
   managerReviewNotes?: string;
+  lastStatusChangedAt?: string;
+  completedAt?: string;
+  archivedAt?: string;
+  stageHistory?: TaskStageHistoryEntry[];
 }
 
 export interface KPICategoryScore {

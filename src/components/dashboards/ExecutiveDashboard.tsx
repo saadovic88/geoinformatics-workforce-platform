@@ -24,7 +24,7 @@ interface ExecutiveDashboardProps {
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNavigate }) => {
-  const { users, currentUser } = useAuth();
+  const { users, currentUser, isFullAccessUser } = useAuth();
   const { attendanceRecords, leaveRequests, tasks, kpiRecords } = useData();
   const { t, isRtl } = useLanguage();
 
@@ -99,7 +99,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        {isFullAccessUser && <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleExportExecutiveReport}
             className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition flex items-center gap-2 border border-slate-300 shadow-2xs hover:shadow-xs"
@@ -114,7 +114,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
             <ShieldCheck className="w-4 h-4" />
             <span>{isRtl ? 'اعتمادات قسمي' : 'My Department Approvals'} ({pendingLeaves.length})</span>
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* KPI Stats Grid */}
@@ -175,9 +175,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
       </div>
 
       {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 gap-6 ${isFullAccessUser ? 'lg:grid-cols-3' : ''}`}>
         {/* Left 2 Cols: Department Health & Performance */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className={`${isFullAccessUser ? 'lg:col-span-2' : ''} space-y-6`}>
           {/* Department Breakdown */}
           <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -225,12 +225,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
               <h2 className="font-bold text-slate-900 text-base tracking-tight">
                 {isRtl ? 'أبرز مشاريع ومهام الاستشعار و GIS' : 'High-Priority GIS & Earth Observation Projects'}
               </h2>
-              <button
+              {isFullAccessUser && <button
                 onClick={() => onNavigate('tasks_team')}
                 className="text-xs text-blue-600 hover:text-blue-800 font-bold transition"
               >
                 {isRtl ? 'عرض كافة المشاريع' : 'Manage All'}
-              </button>
+              </button>}
             </div>
 
             <div className="space-y-3">
@@ -261,7 +261,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
         </div>
 
         {/* Right Col: Department-owned approvals queue */}
-        <div className="space-y-6">
+        {isFullAccessUser && <div className="space-y-6">
           <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-200 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2">
@@ -317,17 +317,17 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ onNaviga
               {isRtl ? 'فتح مركز اعتماد القسم' : 'Open Department Approval Center'}
             </button>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Department KPI 12-Month Trends & Seasonal Diagnostics (Multi-Line Chart) */}
       <div className="pt-2">
-        <DepartmentKPITrendsVisualizer />
+        <DepartmentKPITrendsVisualizer allowExport={isFullAccessUser} />
       </div>
 
       {/* Task Performance Insights: Recharts Analytics */}
       <div className="pt-2">
-        <TaskPerformanceInsights embeddedInDashboard={true} />
+        <TaskPerformanceInsights embeddedInDashboard={true} allowExport={isFullAccessUser} />
       </div>
     </div>
   );

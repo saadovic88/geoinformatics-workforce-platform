@@ -1,5 +1,5 @@
-const CACHE_NAME = 'geoinformatics-shell-v6';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/logo.jpg', '/assets/geoinformatics-favicon.png', '/assets/geoinformatics-app-icon-192.png', '/assets/geoinformatics-app-icon-512.png'];
+const CACHE_NAME = 'geoinformatics-shell-v7';
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/logo.jpg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -37,8 +37,8 @@ self.addEventListener('push', (event) => {
     if (windows.some((client) => client.visibilityState === 'visible')) return;
     await self.registration.showNotification(title, {
       body,
-      icon: '/assets/geoinformatics-app-icon-192.png',
-      badge: '/assets/geoinformatics-favicon.png',
+      icon: '/assets/logo.jpg',
+      badge: '/assets/logo.jpg',
       tag: payload.notificationId || `geoinformatics-${Date.now()}`,
       renotify: true,
       data: { actionUrl },

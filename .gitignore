@@ -9,3 +9,8 @@ coverage/
 vercel-import.env
 private-user-credentials.md
 private-password-reset-*.md
+
+# Local QA evidence and Supabase CLI runtime metadata are not application source.
+dogfood-output/
+supabase/.temp/
+vite.eval.config.ts
