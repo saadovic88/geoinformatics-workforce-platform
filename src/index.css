@@ -209,6 +209,37 @@ html.dark .platform-shell :is(input, select, textarea):disabled {
   cursor: not-allowed;
 }
 
+/* Checkboxes, browser autofill and small neutral utility surfaces are common
+   sources of a sudden white flash on forms and approval tables. */
+html.dark .platform-shell :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: #3b82f6;
+}
+
+html.dark .platform-shell input:-webkit-autofill,
+html.dark .platform-shell input:-webkit-autofill:hover,
+html.dark .platform-shell input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--console-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--console-field) inset;
+  caret-color: var(--console-text);
+  transition: background-color 99999s ease-out 0s;
+}
+
+html.dark .platform-shell :is(.bg-gray-50, .bg-gray-100, .bg-neutral-50, .bg-neutral-100, .bg-zinc-50, .bg-zinc-100):not([class*="dark:bg-"]) {
+  background-color: var(--console-field);
+}
+
+html.dark .platform-shell :is(.border-gray-300, .border-gray-400, .border-neutral-200, .border-neutral-300, .border-zinc-200, .border-zinc-300):not([class*="dark:border-"]) {
+  border-color: var(--console-border);
+}
+
+html.dark .platform-shell :is(.text-gray-900, .text-gray-800, .text-neutral-900, .text-neutral-800, .text-zinc-900, .text-zinc-800):not([class*="dark:text-"]) {
+  color: var(--console-text);
+}
+
+html.dark .platform-shell :is(.text-gray-600, .text-gray-500, .text-neutral-600, .text-neutral-500, .text-zinc-600, .text-zinc-500):not([class*="dark:text-"]) {
+  color: var(--console-muted);
+}
+
 html.dark .platform-shell select option {
   background: #142237;
   color: #eef4fc;
@@ -267,6 +298,20 @@ html.dark .platform-shell .leaflet-control-attribution {
 
 html.dark .platform-shell .leaflet-control-zoom a:hover {
   background: #263b57;
+}
+
+html.dark .platform-shell .leaflet-popup-content-wrapper,
+html.dark .platform-shell .leaflet-popup-tip {
+  background: var(--console-panel-raised);
+  color: var(--console-text);
+}
+
+html.dark .platform-shell .leaflet-popup-close-button {
+  color: var(--console-muted) !important;
+}
+
+html.dark .platform-shell .leaflet-popup-close-button:hover {
+  color: var(--console-text) !important;
 }
 
 /* Login is rendered outside `.platform-shell`; preserve the same quiet navy
