@@ -241,6 +241,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const allCloudKinds: CloudKind[] = ['attendance', 'zone', 'schedule', 'holiday', 'leave_request', 'leave_balance', 'task', 'kpi', 'notification', 'audit'];
   const cloudSnapshots = useRef(new Map<CloudKind, Map<string, string>>());
 
+  const createCloudSnapshots = (documents: CloudDocument[]) => {
+    const snapshots = new Map<CloudKind, Map<string, string>>();
+    allCloudKinds.forEach((kind) => snapshots.set(kind, new Map()));
+    documents.forEach((document) => snapshots.get(document.kind)?.set(document.document_id, JSON.stringify(document.payload)));
+    return snapshots;
+  };
+
+  const changedCloudKinds = (nextSnapshots: Map<CloudKind, Map<string, string>>) => allCloudKinds.filter((kind) => {
+    const previous = cloudSnapshots.current.get(kind) || new Map<string, string>();
+    const next = nextSnapshots.get(kind) || new Map<string, string>();
+    if (previous.size !== next.size) return true;
+    return [...next].some(([id, payload]) => previous.get(id) !== payload);
+  });
+
   const rememberCloudDocuments = (documents: CloudDocument[], replaceKinds = true) => {
     const kinds = new Set(documents.map((document) => document.kind));
     if (replaceKinds) kinds.forEach((kind) => cloudSnapshots.current.set(kind, new Map()));
@@ -352,22 +366,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ;
       if (cancelled || error || !data) return;
       const documents = data as CloudDocument[];
-      allCloudKinds.forEach((kind) => cloudSnapshots.current.set(kind, new Map()));
-      rememberCloudDocuments(documents);
-      const payloads = (kind: CloudKind) => documents.filter((document) => document.kind === kind).map((document) => document.payload);
-      const nextLeaves = payloads('leave_request') as LeaveRequest[];
-      const nextTasks = payloads('task') as Task[];
-      const nextNotifications = payloads('notification') as NotificationItem[];
-      setLeaveRequests((previous) => JSON.stringify(previous) === JSON.stringify(nextLeaves) ? previous : nextLeaves);
-      setTasks((previous) => JSON.stringify(previous) === JSON.stringify(nextTasks) ? previous : nextTasks);
-      setNotifications((previous) => JSON.stringify(previous) === JSON.stringify(nextNotifications) ? previous : nextNotifications);
-      setAttendanceRecords((previous) => { const next = payloads('attendance') as AttendanceRecord[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
-      setGeofenceZones((previous) => { const next = payloads('zone') as GeofenceZone[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
-      setWorkSchedules((previous) => { const next = payloads('schedule') as WorkSchedule[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
-      setHolidays((previous) => { const next = payloads('holiday') as Holiday[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
-      setLeaveBalances((previous) => { const next = payloads('leave_balance') as LeaveBalance[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
-      setKpiRecords((previous) => { const next = payloads('kpi') as MonthlyKPIRecord[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
-      setAuditLogs((previous) => { const next = payloads('audit') as AuditLogItem[]; return JSON.stringify(previous) === JSON.stringify(next) ? previous : next; });
+      const nextSnapshots = createCloudSnapshots(documents);
+      const changed = changedCloudKinds(nextSnapshots);
+      // The recovery poll normally finds no changes. Avoid filtering every
+      // collection, JSON-stringifying state, and scheduling ten React updates
+      // in that common case.
+      if (!changed.length) {
+        setLastSyncedAt(new Date().toISOString());
+        return;
+      }
+      cloudSnapshots.current = nextSnapshots;
+      const byKind = new Map<CloudKind, unknown[]>();
+      allCloudKinds.forEach((kind) => byKind.set(kind, []));
+      documents.forEach((document) => byKind.get(document.kind)?.push(document.payload));
+      const payloads = (kind: CloudKind) => byKind.get(kind) || [];
+      if (changed.includes('leave_request')) setLeaveRequests(payloads('leave_request') as LeaveRequest[]);
+      if (changed.includes('task')) setTasks(payloads('task') as Task[]);
+      if (changed.includes('notification')) setNotifications(payloads('notification') as NotificationItem[]);
+      if (changed.includes('attendance')) setAttendanceRecords(payloads('attendance') as AttendanceRecord[]);
+      if (changed.includes('zone')) setGeofenceZones(payloads('zone') as GeofenceZone[]);
+      if (changed.includes('schedule')) setWorkSchedules(payloads('schedule') as WorkSchedule[]);
+      if (changed.includes('holiday')) setHolidays(payloads('holiday') as Holiday[]);
+      if (changed.includes('leave_balance')) setLeaveBalances(payloads('leave_balance') as LeaveBalance[]);
+      if (changed.includes('kpi')) setKpiRecords(payloads('kpi') as MonthlyKPIRecord[]);
+      if (changed.includes('audit')) setAuditLogs(payloads('audit') as AuditLogItem[]);
       setLastSyncedAt(new Date().toISOString());
     };
     const channel = client
@@ -379,7 +401,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshTimer = window.setTimeout(() => { void refreshOperationalInbox(); }, 180);
       })
       .subscribe();
-    const interval = window.setInterval(() => { void refreshOperationalInbox(); }, 30000);
+    // Realtime delivers normal updates immediately. The poll is only a safety
+    // net for a missed socket event, so keep it light and do no work in a
+    // background tab.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshOperationalInbox();
+    }, 90000);
     const refreshOnReturn = () => {
       if (document.visibilityState === 'visible') void refreshOperationalInbox();
     };
