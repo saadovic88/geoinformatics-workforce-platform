@@ -1325,9 +1325,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       attachment_payload: attachment,
     });
     if (error) {
-      // The object has no task reference if the atomic append failed, so it is
-      // safe to remove immediately rather than leaving orphaned company data.
-      await supabase.storage.from('task-attachments').remove([storagePath]);
+      // Retention policy is deliberately append-only. An unlinked private
+      // upload remains recoverable for authorised review instead of being
+      // silently erased after a transient database failure.
       const missing = error.code === 'PGRST202' || error.message.includes('add_company_task_attachment');
       return { ok: false, message: missing ? 'Database migration 0023 is required before uploading task files.' : error.message };
     }
