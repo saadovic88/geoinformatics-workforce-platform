@@ -160,6 +160,142 @@ html.dark .platform-shell .recharts-tooltip-label { color: #f1f5f9; }
 html.dark .platform-shell .recharts-wrapper [stroke="#0f172a"],
 html.dark .platform-shell .recharts-wrapper [fill="#0f172a"] { stroke: #cbd5e1; fill: #cbd5e1; }
 
+/* Dark-mode finishing layer -------------------------------------------------
+   Most operational screens were built before theme utilities were added to
+   every component. These rules deliberately map the existing utility palette
+   to a small set of console surfaces instead of letting a stray light card or
+   native field break the workspace. Explicit `dark:*` utilities still win. */
+html.dark {
+  --console-canvas: #091525;
+  --console-panel: #142237;
+  --console-panel-raised: #192b43;
+  --console-field: #0f1d30;
+  --console-border: #31445d;
+  --console-text: #eef4fc;
+  --console-muted: #a9bbd1;
+  background: var(--console-canvas);
+}
+
+html.dark body,
+html.dark #root {
+  background: var(--console-canvas);
+  color: var(--console-text);
+}
+
+/* Semi-transparent white surfaces occur in headers, popovers and modal
+   sheets. They need a real dark counterpart; otherwise they read as pale grey
+   blocks against the navy application shell. */
+html.dark .platform-shell :is(.bg-white\/5, .bg-white\/10, .bg-white\/20, .bg-white\/30, .bg-white\/40, .bg-white\/50, .bg-white\/60, .bg-white\/70):not([class*="dark:bg-"]) {
+  background-color: color-mix(in srgb, var(--console-panel-raised) 86%, transparent);
+}
+
+html.dark .platform-shell :is(.bg-slate-50\/90, .bg-slate-100\/50, .bg-slate-100\/60, .bg-slate-100\/70, .bg-slate-100\/90, .bg-gray-50\/50, .bg-gray-50\/70):not([class*="dark:bg-"]) {
+  background-color: var(--console-field);
+}
+
+/* Native controls can otherwise retain an opaque light UA background (most
+   noticeable in dates, selects and textarea fields). */
+html.dark .platform-shell :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not([class*="dark:bg-"]) {
+  background-color: var(--console-field);
+  color: var(--console-text);
+  border-color: var(--console-border);
+  color-scheme: dark;
+}
+
+html.dark .platform-shell :is(input, select, textarea):disabled {
+  background-color: #1b2a3d;
+  border-color: #2d4059;
+  color: #7f93aa;
+  cursor: not-allowed;
+}
+
+html.dark .platform-shell select option {
+  background: #142237;
+  color: #eef4fc;
+}
+
+html.dark .platform-shell input[type="date"]::-webkit-calendar-picker-indicator,
+html.dark .platform-shell input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.75);
+  opacity: .78;
+}
+
+html.dark .platform-shell :is(input, select, textarea, button):focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* Keep dense data tables calm and readable, including their sticky headings,
+   hover rows and empty/loading blocks. */
+html.dark .platform-shell table :is(th, td) {
+  border-color: var(--console-border);
+}
+
+html.dark .platform-shell :is(thead.bg-slate-50, thead.bg-white, .sticky.bg-white, .sticky.bg-slate-50):not([class*="dark:bg-"]) {
+  background-color: var(--console-panel-raised);
+}
+
+html.dark .platform-shell :is(tr.hover\:bg-slate-50, tr.hover\:bg-slate-100):hover,
+html.dark .platform-shell :is(button, a).hover\:bg-white:hover {
+  background-color: #243751;
+}
+
+/* A clear, deep overlay separates a sheet from its source view without using
+   pure black.  It also fixes legacy `bg-slate-900/..` overlays that remain too
+   transparent in dark mode. */
+html.dark .platform-shell :is(.bg-slate-900\/40, .bg-slate-900\/50, .bg-slate-900\/60, .bg-slate-950\/30, .bg-slate-950\/40):not([class*="dark:bg-"]) {
+  background-color: rgb(4 12 24 / .72);
+}
+
+html.dark .platform-shell :is(.shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl):not([class*="dark:shadow-"]) {
+  box-shadow: 0 12px 30px rgb(0 0 0 / .22);
+}
+
+html.dark .platform-shell .recharts-legend-item-text,
+html.dark .platform-shell .recharts-label,
+html.dark .platform-shell .recharts-text {
+  fill: #c7d5e7 !important;
+  color: #c7d5e7 !important;
+}
+
+html.dark .platform-shell .leaflet-control-zoom a,
+html.dark .platform-shell .leaflet-control-attribution {
+  background: #172841;
+  color: #dce8f7;
+  border-color: #40536b;
+}
+
+html.dark .platform-shell .leaflet-control-zoom a:hover {
+  background: #263b57;
+}
+
+/* Login is rendered outside `.platform-shell`; preserve the same quiet navy
+   material system there when a returning employee has dark mode selected. */
+html.dark #root > main:not(.platform-shell) {
+  background-color: var(--console-canvas) !important;
+  color: var(--console-text);
+}
+
+html.dark #root > main:not(.platform-shell) :is(.bg-white, .bg-white\/95, .bg-white\/85, .bg-white\/80, .bg-white\/75):not([class*="dark:bg-"]) {
+  background-color: var(--console-panel);
+}
+
+html.dark #root > main:not(.platform-shell) :is(.bg-slate-50, .bg-blue-50, .bg-rose-50, .bg-emerald-50):not([class*="dark:bg-"]) {
+  background-color: var(--console-field);
+}
+
+html.dark #root > main:not(.platform-shell) :is(.text-slate-900, .text-slate-800, .text-slate-700):not([class*="dark:text-"]) {
+  color: var(--console-text);
+}
+
+html.dark #root > main:not(.platform-shell) :is(.text-slate-600, .text-slate-500, .text-slate-400):not([class*="dark:text-"]) {
+  color: var(--console-muted);
+}
+
+html.dark #root > main:not(.platform-shell) :is(.border-slate-100, .border-slate-200, .border-blue-100, .border-blue-200):not([class*="dark:border-"]) {
+  border-color: var(--console-border);
+}
+
 /* Leaflet map container fix */
 .leaflet-container {
   width: 100%;
