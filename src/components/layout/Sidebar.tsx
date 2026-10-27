@@ -23,6 +23,7 @@ import {
   Lock,
   History,
   Building,
+  FileUser,
   Globe,
   Sun,
   Moon,
@@ -37,6 +38,7 @@ export type ActivePage =
   | 'dashboard'
   | 'executive'
   | 'directory'
+  | 'my_cv'
   | 'attendance_my'
   | 'attendance_team'
   | 'geofence_settings'
@@ -97,6 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleAr: 'الموظفون والهيكل',
       items: [
         { id: 'directory' as ActivePage, label: t('navEmployeeDir'), icon: Users, show: canViewPeopleDirectory },
+        { id: 'my_cv' as ActivePage, label: isRtl ? 'سيرتي الذاتية' : 'My CV', icon: FileUser, show: true },
       ],
     },
     {

@@ -14,6 +14,7 @@ const CheckOutSummaryModal = React.lazy(() => import('./components/attendance/Ch
 const EmployeeDashboard = React.lazy(() => import('./components/dashboards/EmployeeDashboard').then((module) => ({ default: module.EmployeeDashboard })));
 const ExecutiveDashboard = React.lazy(() => import('./components/dashboards/ExecutiveDashboard').then((module) => ({ default: module.ExecutiveDashboard })));
 const EmployeeDirectory = React.lazy(() => import('./components/directory/EmployeeDirectory').then((module) => ({ default: module.EmployeeDirectory })));
+const MyCVView = React.lazy(() => import('./components/profile/MyCVView').then((module) => ({ default: module.MyCVView })));
 const AttendanceDashboard = React.lazy(() => import('./components/attendance/AttendanceDashboard').then((module) => ({ default: module.AttendanceDashboard })));
 const GeofenceSettingsView = React.lazy(() => import('./components/admin/GeofenceSettingsView').then((module) => ({ default: module.GeofenceSettingsView })));
 const SchedulesHolidaysView = React.lazy(() => import('./components/admin/SchedulesHolidaysView').then((module) => ({ default: module.SchedulesHolidaysView })));
@@ -105,6 +106,8 @@ const MainAppContent: React.FC = () => {
           onRequestLeave={() => setActivePage('leaves_requests')}
           onCreateTask={() => setActivePage('tasks_kanban')}
         />;
+      case 'my_cv':
+        return <MyCVView />;
       case 'attendance_my':
         return <AttendanceDashboard key={activePage} scope="my" />;
       case 'attendance_team':
