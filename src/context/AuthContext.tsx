@@ -19,6 +19,9 @@ interface AuthContextType {
   isFullAccessUser: boolean;
   isPasswordRecovery: boolean;
   finishPasswordRecovery: () => void;
+  /** Shown only after an explicit successful sign-in, never while restoring a session. */
+  welcomeUser: User | null;
+  dismissWelcome: () => void;
 }
 
 export const FULL_ACCESS_EMAILS = new Set([
@@ -123,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [pendingLogoutSummary, setPendingLogoutSummary] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [welcomeUser, setWelcomeUser] = useState<User | null>(null);
   // Company-wide access is deliberately limited to the three named leaders.
   // A technical system administrator does not automatically receive HR/KPI data.
   const isFullAccessUser = FULL_ACCESS_EMAILS.has(currentUser?.email?.toLowerCase());
@@ -165,6 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setCurrentUser = (user: User) => {
     setCurrentUserState(user);
     setIsAuthenticated(true);
+    setWelcomeUser(user);
     localStorage.setItem('geo_is_authenticated', 'true');
   };
 
@@ -283,6 +288,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isFullAccessUser,
         isPasswordRecovery,
         finishPasswordRecovery: () => setIsPasswordRecovery(false),
+        welcomeUser,
+        dismissWelcome: () => setWelcomeUser(null),
       }}
     >
       {children}

@@ -7,13 +7,13 @@ import { DataProvider, useData } from './context/DataContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar, ActivePage } from './components/layout/Sidebar';
 import { LoginView } from './components/auth/LoginView';
+import { WelcomeOverlay } from './components/auth/WelcomeOverlay';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 const CheckOutSummaryModal = React.lazy(() => import('./components/attendance/CheckOutSummaryModal').then((module) => ({ default: module.CheckOutSummaryModal })));
 const EmployeeDashboard = React.lazy(() => import('./components/dashboards/EmployeeDashboard').then((module) => ({ default: module.EmployeeDashboard })));
 const ExecutiveDashboard = React.lazy(() => import('./components/dashboards/ExecutiveDashboard').then((module) => ({ default: module.ExecutiveDashboard })));
 const EmployeeDirectory = React.lazy(() => import('./components/directory/EmployeeDirectory').then((module) => ({ default: module.EmployeeDirectory })));
-const OrgStructureView = React.lazy(() => import('./components/admin/OrgStructureView').then((module) => ({ default: module.OrgStructureView })));
 const AttendanceDashboard = React.lazy(() => import('./components/attendance/AttendanceDashboard').then((module) => ({ default: module.AttendanceDashboard })));
 const GeofenceSettingsView = React.lazy(() => import('./components/admin/GeofenceSettingsView').then((module) => ({ default: module.GeofenceSettingsView })));
 const SchedulesHolidaysView = React.lazy(() => import('./components/admin/SchedulesHolidaysView').then((module) => ({ default: module.SchedulesHolidaysView })));
@@ -25,7 +25,7 @@ const RolesPermissionsView = React.lazy(() => import('./components/admin/RolesPe
 const CompanySettingsView = React.lazy(() => import('./components/admin/CompanySettingsView').then((module) => ({ default: module.CompanySettingsView })));
 
 const MainAppContent: React.FC = () => {
-  const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary, currentUser, isFullAccessUser, hasPermission } = useAuth();
+  const { isAuthenticated, pendingLogoutSummary, setPendingLogoutSummary, currentUser, isFullAccessUser, hasPermission, welcomeUser, dismissWelcome } = useAuth();
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [manualCheckoutModal, setManualCheckoutModal] = useState(false);
@@ -105,8 +105,6 @@ const MainAppContent: React.FC = () => {
           onRequestLeave={() => setActivePage('leaves_requests')}
           onCreateTask={() => setActivePage('tasks_kanban')}
         />;
-      case 'orgchart':
-        return canViewExecutiveMonitoring ? <OrgStructureView /> : adminFallback();
       case 'attendance_my':
         return <AttendanceDashboard key={activePage} scope="my" />;
       case 'attendance_team':
@@ -201,6 +199,7 @@ const MainAppContent: React.FC = () => {
           isLogoutFlow={false}
         />
       </React.Suspense>
+      {welcomeUser && <WelcomeOverlay user={welcomeUser} onContinue={dismissWelcome} />}
     </div>
   );
 };

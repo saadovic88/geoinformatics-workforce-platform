@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   BarChart3,
   Users,
-  Network,
   Clock,
   CalendarCheck,
   MapPin,
@@ -38,7 +37,6 @@ export type ActivePage =
   | 'dashboard'
   | 'executive'
   | 'directory'
-  | 'orgchart'
   | 'attendance_my'
   | 'attendance_team'
   | 'geofence_settings'
@@ -99,7 +97,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       titleAr: 'الموظفون والهيكل',
       items: [
         { id: 'directory' as ActivePage, label: t('navEmployeeDir'), icon: Users, show: canViewPeopleDirectory },
-        { id: 'orgchart' as ActivePage, label: t('navOrgChart'), icon: Network, show: canViewPeopleDirectory },
       ],
     },
     {
