@@ -34,6 +34,7 @@ import { buildTaskStageNotification, canTransitionTask, TASK_STAGE_META } from '
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { formatTaskAttachmentSize, safeTaskAttachmentName, taskAttachmentKind, validateTaskAttachment } from '../utils/taskAttachments';
+import { companyDate, isCompanyDateRange } from '../utils/companyDate';
 
 interface DataContextType {
   // Attendance
@@ -59,7 +60,7 @@ interface DataContextType {
   leaveRequests: LeaveRequest[];
   leaveBalances: LeaveBalance[];
   createLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'createdAt' | 'status' | 'approvalSteps'>) => Promise<{ ok: boolean; message?: string }>;
-  handleLeaveApproval: (requestId: string, approverId: string, decision: 'approved' | 'rejected', notes?: string) => void;
+  handleLeaveApproval: (requestId: string, approverId: string, decision: 'approved' | 'rejected', notes?: string) => Promise<{ ok: boolean; message?: string }>;
   cancelLeaveRequest: (requestId: string) => void;
   // Tasks
   tasks: Task[];
@@ -576,12 +577,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Use the company's local calendar day. UTC dates can otherwise create a
   // second attendance session around midnight in Cairo.
-  const todayStr = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Cairo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  const todayStr = companyDate();
   const todayAttendance = attendanceRecords.find(
     (r) => r.employeeId === currentUser?.id && r.date === todayStr
   );
@@ -810,6 +806,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser || req.employeeId !== currentUser.id || !canSubmitOwnLeave(currentUser)) {
       return { ok: false, message: 'You are not allowed to submit this request.' };
     }
+    if (!isCompanyDateRange(req.startDate, req.endDate)) {
+      return { ok: false, message: 'Enter a valid Cairo calendar range: the end date cannot be before the start date.' };
+    }
+    if (!Number.isFinite(req.durationUnits) || req.durationUnits <= 0) {
+      return { ok: false, message: 'Enter a valid requested duration.' };
+    }
+    if (['late_arrival', 'early_leave', 'short_hourly'].includes(req.leaveType) && req.startDate !== req.endDate) {
+      return { ok: false, message: 'Hourly permissions must start and end on the same Cairo calendar day.' };
+    }
     const requester = users.find((user) => user.id === req.employeeId) || currentUser;
     let approvers = getLeaveApprovers(requester, users).map((user) => ({ id: user.id, nameEn: user.nameEn }));
     if (supabase) {
@@ -861,18 +866,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { ok: true };
   };
 
-  const handleLeaveApproval = (
+  const handleLeaveApproval = async (
     requestId: string,
     approverId: string,
     decision: 'approved' | 'rejected',
     notes?: string
   ) => {
     const target = leaveRequests.find((r) => r.id === requestId);
-    if (!target) return;
+    if (!target) return { ok: false, message: 'Leave request not found.' };
     // An approver may act only as themselves, and only on the one step routed
     // to them. Full platform access does not bypass leave ownership.
-    if (!currentUser || currentUser.id !== approverId) return;
-    if (!target.approvalSteps.some((step) => step.approverId === approverId)) return;
+    if (!currentUser || currentUser.id !== approverId) return { ok: false, message: 'You may act only as yourself.' };
+    if (!target.approvalSteps.some((step) => step.approverId === approverId)) return { ok: false, message: 'You are not assigned to this leave request.' };
+
+    if (supabase) {
+      if (!cloudReady) return { ok: false, message: 'Company data is still loading. Please try again in a moment.' };
+      const { data, error } = await supabase.rpc('transition_company_leave', {
+        request_document_id: requestId,
+        next_decision: decision,
+        decision_note: notes?.trim() || null,
+      });
+      if (error) {
+        const missing = error.code === 'PGRST202' || error.message.includes('transition_company_leave');
+        return { ok: false, message: missing ? 'Database migration 0029 is required to approve leave requests safely.' : error.message };
+      }
+      const result = data as { request?: LeaveRequest; balance?: LeaveBalance | null; notification?: NotificationItem } | null;
+      if (!result?.request || result.request.id !== requestId) {
+        return { ok: false, message: 'The server did not return the authoritative leave request. Refresh and try again.' };
+      }
+      setLeaveRequests((prev) => prev.map((request) => request.id === requestId ? result.request! : request));
+      if (result.balance) setLeaveBalances((prev) => prev.map((balance) =>
+        balance.employeeId === result.balance!.employeeId && balance.leaveType === result.balance!.leaveType ? result.balance! : balance
+      ));
+      if (result.notification?.userId === currentUser.id) setNotifications((prev) => [result.notification!, ...prev]);
+      rememberCloudDocuments([
+        { kind: 'leave_request', document_id: result.request.id, owner_id: result.request.employeeId, payload: result.request },
+        ...(result.balance ? [{ kind: 'leave_balance' as const, document_id: `${result.balance.employeeId}_${result.balance.leaveType}`, owner_id: result.balance.employeeId, payload: result.balance }] : []),
+        ...(result.notification ? [{ kind: 'notification' as const, document_id: result.notification.id, owner_id: result.notification.userId, payload: result.notification }] : []),
+      ], false);
+      if (result.notification) dispatchPushNotification(result.notification);
+      logAction('LEAVE_APPROVAL_UPDATED', 'Leaves', `Request ${requestId}: ${approverId} changed decision to ${decision}; status ${result.request.status}`);
+      return { ok: true };
+    }
 
     // A signatory may reverse a prior rejection (or an approval). The request
     // status is recomputed from every individual decision, not treated as an
@@ -916,7 +951,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       type: 'leave', priority: 'high', actionUrl: `leave:${requestId}`,
     });
     logAction('LEAVE_APPROVAL_UPDATED', 'Leaves', `Request ${requestId}: ${approverId} changed decision to ${decision}; status ${nextStatus}`);
-    return;
+    return { ok: true };
 
     /* Legacy single-step implementation retained in history:
     if (decision === 'rejected') {
@@ -1095,6 +1130,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Tasks Management
   const createTask = async (taskData: Omit<Task, 'id' | 'activityLogs' | 'comments'>) => {
+    if (!isCompanyDateRange(taskData.startDate, taskData.dueDate)) {
+      return { ok: false, message: 'Task dates are invalid: the due date cannot be before the start date.' };
+    }
     if (taskData.assigneeIds.some((id) => users.find((user) => user.id === id)?.roleId === 'co_founder')) {
       return { ok: false, message: 'Monitoring-only co-founders cannot be assigned operational tasks.' };
     }

@@ -20,6 +20,7 @@ import {
 import { UserAvatar } from '../common/UserAvatar';
 import { canSubmitOwnLeave, isLeaveExempt, isLeaveObserver } from '../../utils/leavePolicy';
 import { supabase } from '../../lib/supabase';
+import { companyDate, isCompanyDateRange } from '../../utils/companyDate';
 
 interface LeaveManagementProps {
   initialTab?: 'requests' | 'balances' | 'dual_approval' | 'wfh_field';
@@ -49,8 +50,8 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
 
   // Form states
   const [leaveType, setLeaveType] = useState<LeaveType>('annual');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(companyDate);
+  const [endDate, setEndDate] = useState(companyDate);
   const [durationUnits, setDurationUnits] = useState(1);
   const [reason, setReason] = useState('');
   const [handoverNotes, setHandoverNotes] = useState('');
@@ -59,6 +60,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
   const [proxyCandidates, setProxyCandidates] = useState<ProxyCandidate[]>([]);
   const [isLoadingProxyCandidates, setIsLoadingProxyCandidates] = useState(Boolean(supabase));
   const [submissionError, setSubmissionError] = useState('');
+  const [approvalError, setApprovalError] = useState('');
   // Field site specifics
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -133,6 +135,14 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
       setSubmissionError(isRtl ? 'أكمل سبب الطلب واختر زميل تغطية المهام.' : 'Add a reason and select a work-cover colleague.');
       return;
     }
+    if (!isCompanyDateRange(startDate, endDate)) {
+      setSubmissionError(isRtl ? 'تحقق من تاريخ البداية والنهاية؛ لا يمكن أن يسبق تاريخ النهاية تاريخ البداية.' : 'Check the requested dates: the end date cannot be before the start date.');
+      return;
+    }
+    if (['late_arrival', 'early_leave', 'short_hourly'].includes(leaveType) && startDate !== endDate) {
+      setSubmissionError(isRtl ? 'الأذونات بالساعات يجب أن تبدأ وتنتهي في اليوم نفسه.' : 'Hourly permissions must start and end on the same day.');
+      return;
+    }
 
     setSubmissionError('');
     const result = await createLeaveRequest({
@@ -166,6 +176,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
     setHandoverNotes('');
     setContactWhileAway('');
     setProxyEmployeeId('');
+  };
+
+  const actOnLeave = async (requestId: string, approverId: string, decision: 'approved' | 'rejected', notes?: string) => {
+    setApprovalError('');
+    const result = await handleLeaveApproval(requestId, approverId, decision, notes);
+    if (!result.ok) setApprovalError(result.message || (isRtl ? 'تعذر حفظ قرار الاعتماد.' : 'The approval decision could not be saved.'));
   };
 
   // Every routed decision remains available to its owner for amendment.
@@ -286,6 +302,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
           {t('navWfhField')}
         </button>
       </div>
+      {approvalError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800">{approvalError}</div>}
 
       {/* TAB 1: ALL LEAVE REQUESTS */}
       {activeTab === 'requests' && (
@@ -522,12 +539,12 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                         />
 
                         <div className="flex gap-2 mb-2">
-                          <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'approved', notes)} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs">
+                          <button onClick={() => void actOnLeave(req.id, currentApprovalStep.approverId, 'approved', notes)} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs">
                             {currentApprovalStep.status === 'rejected'
                               ? (isRtl ? 'إلغاء الرفض والموافقة' : 'Reverse rejection and approve')
                               : (isRtl ? `اعتماد بصفتي ${currentApprovalStep.approverName}` : `Approve as ${currentApprovalStep.approverName}`)}
                           </button>
-                          <button onClick={() => handleLeaveApproval(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">
+                          <button onClick={() => void actOnLeave(req.id, currentApprovalStep.approverId, 'rejected', notes)} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-[11px]">
                             {currentApprovalStep.status === 'approved' ? (isRtl ? 'سحب الموافقة ورفض' : 'Withdraw approval') : (isRtl ? 'رفض' : 'Reject')}
                           </button>
                         </div>
@@ -695,7 +712,11 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                     type="date"
                     required
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      const nextStart = e.target.value;
+                      setStartDate(nextStart);
+                      if (endDate < nextStart) setEndDate(nextStart);
+                    }}
                     className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"
                   />
                 </div>
@@ -704,6 +725,7 @@ export const LeaveManagement: React.FC<LeaveManagementProps> = ({ initialTab = '
                   <input
                     type="date"
                     required
+                    min={startDate}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"

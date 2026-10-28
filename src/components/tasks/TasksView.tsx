@@ -45,6 +45,7 @@ import {
   formatTaskAttachmentSize,
   validateTaskAttachment,
 } from "../../utils/taskAttachments";
+import { addCompanyDays, companyDate, isCompanyDateRange } from "../../utils/companyDate";
 
 interface TasksViewProps {
   initialViewMode?: "kanban" | "list" | "insights";
@@ -134,11 +135,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [reviewScore, setReviewScore] = useState(95);
   const [reviewNotes, setReviewNotes] = useState("");
   const [editing, setEditing] = useState(false);
-  const defaultDueDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().slice(0, 10);
-  }, []);
+  const companyToday = useMemo(() => companyDate(), []);
+  const defaultDueDate = useMemo(() => addCompanyDays(companyToday, 7), [companyToday]);
   const [draft, setDraft] = useState({
     title: "",
     projectName: "",
@@ -320,6 +318,13 @@ export const TasksView: React.FC<TasksViewProps> = ({
           "Enter a task title, assignee, and due date.",
         ),
       );
+    if (!isCompanyDateRange(companyToday, draft.dueDate))
+      return setFeedback(
+        c(
+          "تحقق من تاريخ الاستحقاق؛ يجب ألا يسبق تاريخ اليوم.",
+          "The due date cannot be before the company calendar day.",
+        ),
+      );
     const invalidFile = createFiles.map(validateTaskAttachment).find(Boolean);
     if (invalidFile)
       return setFeedback(
@@ -338,7 +343,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       assigneeIds: [draft.assigneeId],
       priority: draft.priority,
       status: "not_started",
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: companyToday,
       dueDate: draft.dueDate,
       deadlineTime: "17:00",
       estimatedHours: Math.max(1, Number(draft.estimatedHours) || 1),
@@ -1802,6 +1807,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 <input
                   type="date"
                   required
+                  min={companyToday}
                   value={draft.dueDate}
                   onChange={(event) =>
                     setDraft({ ...draft, dueDate: event.target.value })

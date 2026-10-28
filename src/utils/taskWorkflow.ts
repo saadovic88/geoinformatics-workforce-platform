@@ -1,25 +1,22 @@
 import { NotificationItem, Task, TaskPriority, TaskStatus, User } from '../types';
+import { COMPANY_TIME_ZONE, companyDate } from './companyDate';
 
 export type TaskPeriod = 'week' | 'month' | 'year' | 'all' | 'archive';
 
-export const ACTIVE_TASK_STAGES: TaskStatus[] = [
-  'not_started', 'in_progress', 'blocked', 'submitted', 'needs_revision', 'completed',
-];
+export const ACTIVE_TASK_STAGES: TaskStatus[] = ['not_started', 'in_progress', 'blocked', 'submitted', 'needs_revision', 'completed'];
 
 export const TASK_STAGE_META: Record<TaskStatus, { en: string; ar: string; tone: string }> = {
   not_started: { en: 'Awaiting start', ar: 'بانتظار البدء', tone: 'slate' },
   in_progress: { en: 'In progress', ar: 'قيد التنفيذ', tone: 'blue' },
   blocked: { en: 'Blocked', ar: 'متوقفة', tone: 'rose' },
   submitted: { en: 'Under review', ar: 'قيد المراجعة', tone: 'amber' },
-  needs_revision: { en: 'Revision required', ar: 'تحتاج تعديلاً', tone: 'orange' },
+  needs_revision: { en: 'Revision required', ar: 'تحتاج تعديلًا', tone: 'orange' },
   completed: { en: 'Completed', ar: 'مكتملة', tone: 'emerald' },
   cancelled: { en: 'Archived', ar: 'مؤرشفة', tone: 'slate' },
   overdue: { en: 'Overdue (legacy)', ar: 'متأخرة (سجل سابق)', tone: 'rose' },
 };
 
 const TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
-  // Operational stages may move forward or back. The server still enforces
-  // who can make review/closure decisions and retains every transition.
   not_started: ['in_progress', 'blocked', 'cancelled'],
   in_progress: ['not_started', 'blocked', 'submitted', 'cancelled'],
   blocked: ['not_started', 'in_progress', 'cancelled'],
@@ -33,34 +30,38 @@ export const getAllowedTaskTransitions = (status: TaskStatus) => TRANSITIONS[sta
 export const canTransitionTask = (from: TaskStatus, to: TaskStatus) => getAllowedTaskTransitions(from).includes(to);
 export const isTaskArchived = (task: Task) => task.status === 'cancelled' || Boolean(task.archivedAt);
 export const isTaskOverdue = (task: Task, now = new Date()) =>
-  !['completed', 'cancelled'].includes(task.status) && new Date(`${task.dueDate}T23:59:59`).getTime() < now.getTime();
+  !['completed', 'cancelled'].includes(task.status) && task.dueDate < companyDate(now);
 
 export const getVisitedTaskStages = (task: Task) => {
   const visited = new Set<TaskStatus>([task.status]);
   (task.stageHistory || []).forEach((entry) => { visited.add(entry.from); visited.add(entry.to); });
-  // Legacy records predate structured history. Infer only mandatory stages;
-  // never imply that optional blocked/revision branches occurred.
   if (!task.stageHistory?.length && ['submitted', 'completed'].includes(task.status)) {
     visited.add('not_started'); visited.add('in_progress'); visited.add('submitted');
   }
   return visited;
 };
 
+const toCompanyCalendarDate = (value: string) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : companyDate(date);
+};
+
 export const taskMatchesPeriod = (task: Task, period: TaskPeriod, now = new Date()) => {
   if (period === 'archive') return isTaskArchived(task);
   if (isTaskArchived(task)) return false;
   if (period === 'all') return true;
-  const raw = task.lastStatusChangedAt || task.completedAt || task.startDate || task.dueDate;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return period === 'year';
-  if (period === 'year') return date.getFullYear() === now.getFullYear();
-  if (period === 'month') return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  const day = start.getDay();
-  start.setDate(start.getDate() - day);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
+  const date = toCompanyCalendarDate(task.lastStatusChangedAt || task.completedAt || task.startDate || task.dueDate);
+  if (!date) return period === 'year';
+  const current = companyDate(now);
+  if (period === 'year') return date.slice(0, 4) === current.slice(0, 4);
+  if (period === 'month') return date.slice(0, 7) === current.slice(0, 7);
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: COMPANY_TIME_ZONE, weekday: 'short' }).format(now);
+  const sundayOffset: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const [year, month, day] = current.split('-').map(Number);
+  const weekStart = new Date(Date.UTC(year, month - 1, day - sundayOffset[weekday]));
+  const start = weekStart.toISOString().slice(0, 10);
+  const end = new Date(weekStart.getTime() + 7 * 86400000).toISOString().slice(0, 10);
   return date >= start && date < end;
 };
 
@@ -72,8 +73,8 @@ const nextAction = (to: TaskStatus) => {
     case 'blocked': return { en: 'Review the blocking reason and help remove it.', ar: 'راجع سبب التوقف وساعد في إزالة العائق.' };
     case 'submitted': return { en: 'Review the deliverables and record your decision.', ar: 'راجع المخرجات وسجّل قرارك.' };
     case 'needs_revision': return { en: 'Apply the requested changes and resubmit.', ar: 'نفّذ التعديلات المطلوبة ثم أعد الإرسال.' };
-    case 'completed': return { en: 'No action is required; the record remains available.', ar: 'لا يلزم إجراء؛ سيظل السجل متاحاً.' };
-    default: return { en: 'This record is retained in the company archive.', ar: 'سيظل هذا السجل محفوظاً في أرشيف الشركة.' };
+    case 'completed': return { en: 'No action is required; the record remains available.', ar: 'لا يلزم إجراء؛ سيظل السجل متاحًا.' };
+    default: return { en: 'This record is retained in the company archive.', ar: 'سيظل هذا السجل محفوظًا في أرشيف الشركة.' };
   }
 };
 
