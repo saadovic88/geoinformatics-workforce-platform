@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { GeofenceZone } from '../../types';
 
 interface LeafletMapProps {
@@ -22,6 +23,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
+  const [tilesReady, setTilesReady] = useState(false);
+  const [tileError, setTileError] = useState(false);
 
   // Leaflet calculates tiles before flex/grid cards finish their layout.  A
   // resize observer keeps the map responsive without repeatedly rebuilding it.
@@ -49,9 +52,12 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         attributionControl: false,
       }).setView([initialLat, initialLon], 14);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-      }).addTo(map);
+      });
+      tiles.on('load', () => { setTilesReady(true); setTileError(false); });
+      tiles.on('tileerror', () => setTileError(true));
+      tiles.addTo(map);
 
       const markersGroup = L.layerGroup().addTo(map);
       markersGroupRef.current = markersGroup;
@@ -125,15 +131,16 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     }
 
     requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+    const delayedInvalidate = window.setTimeout(() => map.invalidateSize({ animate: false }), 180);
 
-    return undefined;
+    return () => window.clearTimeout(delayedInvalidate);
   }, [zones, userLat, userLon, interactive, onLocationSelect]);
 
   return (
-    <div
-      ref={mapContainerRef}
-      style={{ height, width: '100%' }}
-      className="rounded-xl overflow-hidden border border-slate-200 shadow-inner"
-    />
+    <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-inner" style={{ height, width: '100%' }}>
+      <div ref={mapContainerRef} className="h-full w-full" />
+      {!tilesReady && !tileError && <div className="pointer-events-none absolute inset-0 grid place-items-center bg-slate-50/80 text-xs font-semibold text-slate-500">Loading map…</div>}
+      {tileError && <div className="absolute inset-0 grid place-items-center bg-slate-50/90 p-4 text-center"><div><p className="text-sm font-bold text-slate-700">Map tiles could not load</p><p className="mt-1 text-xs text-slate-500">Check your connection, then try again.</p><button type="button" onClick={() => { setTilesReady(false); setTileError(false); mapInstanceRef.current?.eachLayer((layer) => { if (layer instanceof L.TileLayer) layer.redraw(); }); }} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Retry map</button></div></div>}
+    </div>
   );
 };

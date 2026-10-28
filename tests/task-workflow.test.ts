@@ -17,6 +17,9 @@ test('task workflow permits only explicit stage transitions', () => {
   assert.equal(canTransitionTask('not_started', 'completed'), false);
   assert.equal(canTransitionTask('submitted', 'needs_revision'), true);
   assert.equal(canTransitionTask('completed', 'in_progress'), false);
+  assert.equal(canTransitionTask('in_progress', 'not_started'), true);
+  assert.equal(canTransitionTask('submitted', 'in_progress'), true);
+  assert.equal(canTransitionTask('completed', 'submitted'), true);
 });
 
 test('stage metadata is complete and genuinely bilingual', () => {
@@ -63,4 +66,12 @@ test('task transition migration returns authoritative state and bypasses ordinar
   assert.ok(ordinaryAssigneeGuard > workflowBypass, 'atomic workflow bypass must run before the ordinary assignee restriction');
   assert.match(migration, /item->>'actionUrl' is distinct from 'task:' \|\| task_document_id/);
   assert.match(migration, /jsonb_array_length\(coalesce\(transition_notifications/);
+});
+
+test('flexible workflow migration retains returns and requires a reason', () => {
+  const migration = readFileSync('supabase/migrations/0028_flexible_task_workflow.sql', 'utf8');
+  assert.match(migration, /when 'in_progress' then next_status in \('not_started','blocked','submitted','cancelled'\)/);
+  assert.match(migration, /when 'completed' then next_status in \('submitted','needs_revision','cancelled'\)/);
+  assert.match(migration, /is_return/);
+  assert.match(migration, /recipient::text = task_payload->>'creatorId'/);
 });

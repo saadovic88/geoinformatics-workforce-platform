@@ -18,13 +18,15 @@ export const TASK_STAGE_META: Record<TaskStatus, { en: string; ar: string; tone:
 };
 
 const TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
-  not_started: ['in_progress', 'cancelled'],
-  in_progress: ['blocked', 'submitted', 'cancelled'],
-  blocked: ['in_progress', 'cancelled'],
-  submitted: ['completed', 'needs_revision', 'cancelled'],
-  needs_revision: ['in_progress', 'submitted', 'cancelled'],
-  overdue: ['in_progress', 'blocked', 'submitted', 'cancelled'],
-  completed: ['cancelled'],
+  // Operational stages may move forward or back. The server still enforces
+  // who can make review/closure decisions and retains every transition.
+  not_started: ['in_progress', 'blocked', 'cancelled'],
+  in_progress: ['not_started', 'blocked', 'submitted', 'cancelled'],
+  blocked: ['not_started', 'in_progress', 'cancelled'],
+  submitted: ['in_progress', 'needs_revision', 'completed', 'cancelled'],
+  needs_revision: ['not_started', 'in_progress', 'blocked', 'submitted', 'cancelled'],
+  overdue: ['not_started', 'in_progress', 'blocked', 'submitted', 'cancelled'],
+  completed: ['submitted', 'needs_revision', 'cancelled'],
 };
 
 export const getAllowedTaskTransitions = (status: TaskStatus) => TRANSITIONS[status] || [];

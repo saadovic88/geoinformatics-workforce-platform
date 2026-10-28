@@ -1212,11 +1212,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timestamp,
       note: note?.trim() || undefined,
     };
+    // The person responsible for the task must receive every operational
+    // update from the assignee, including a return to an earlier stage. A
+    // manager decision travels back to every assignee. The database RPC
+    // repeats this recipient validation before anything is saved.
     const recipientIds = new Set<string>();
-    if (['blocked', 'submitted'].includes(newStatus)) {
-      recipientIds.add(target.creatorId);
-      users.filter((user) => user.roleId === 'sys_admin').forEach((user) => recipientIds.add(user.id));
-    } else target.assigneeIds.forEach((id) => recipientIds.add(id));
+    const actorIsManager = isFullAccessUser || target.creatorId === currentUser.id;
+    if (actorIsManager) target.assigneeIds.forEach((id) => recipientIds.add(id));
+    else recipientIds.add(target.creatorId);
     recipientIds.delete(currentUser.id);
     const deliveries = [...recipientIds].map((recipientId) => buildTaskStageNotification({
       task: target, from: target.status, to: newStatus, actor: currentUser, recipientId, note,
@@ -1406,9 +1409,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reviewTask = async (taskId: string, decision: 'approve' | 'revise', score?: number, notes?: string) => {
-    if (!isFullAccessUser) return { ok: false, message: 'Only authorised reviewers can review tasks.' };
     const taskToReview = tasks.find((task) => task.id === taskId);
     if (!taskToReview) return { ok: false, message: 'Task not found.' };
+    if (!isFullAccessUser && taskToReview.creatorId !== currentUser.id) return { ok: false, message: 'Only the assigned manager can review this task.' };
     const normalizedScore = Math.max(0, Math.min(100, score ?? 100));
     const result = await transitionTask(
       taskId,

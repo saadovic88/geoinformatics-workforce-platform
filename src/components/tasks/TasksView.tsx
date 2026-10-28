@@ -280,6 +280,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
     nextStatus: TaskStatus,
     transitionNote?: string,
   ) => {
+    const returning = (task.status === 'in_progress' && nextStatus === 'not_started')
+      || (task.status === 'blocked' && nextStatus === 'not_started')
+      || (task.status === 'submitted' && nextStatus === 'in_progress')
+      || (task.status === 'needs_revision' && ['not_started', 'in_progress'].includes(nextStatus))
+      || (task.status === 'completed' && ['submitted', 'needs_revision'].includes(nextStatus));
+    if ((returning || ['blocked', 'needs_revision', 'cancelled'].includes(nextStatus)) && !transitionNote?.trim()) {
+      setFeedback(c('اكتب سببًا واضحًا قبل إرجاع المهمة أو إيقافها أو طلب تعديلها.', 'Add a clear reason before returning, blocking, or requesting a revision.'));
+      return;
+    }
     setWorking(true);
     setFeedback("");
     const result = await updateTaskStatus(task.id, nextStatus, transitionNote);
@@ -399,35 +408,30 @@ export const TasksView: React.FC<TasksViewProps> = ({
   };
   const stageRail = (task: Task) => {
     const visited = getVisitedTaskStages(task);
-    const stages: TaskStatus[] = [
-      ...ACTIVE_TASK_STAGES,
-      ...(["cancelled", "overdue"].includes(task.status) ? [task.status] : []),
-    ];
+    // Keep the visual rail focused on the normal delivery path. Exception
+    // stages are shown by the prominent current-stage card below instead of
+    // making the rail too wide to understand on a phone.
+    const stages: TaskStatus[] = ["not_started", "in_progress", "submitted", "completed"];
     return (
       <div
-        className="overflow-x-auto pb-1"
+        className="rounded-xl border border-slate-200 bg-slate-50 p-2"
         aria-label={c("مسار مراحل المهمة", "Task workflow stages")}
       >
-        <ol className="flex min-w-[670px] items-center gap-1">
-          {stages.map((stage, index) => {
+        <ol className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          {stages.map((stage) => {
             const current = task.status === stage;
             const done = visited.has(stage) && !current;
             const Icon = done ? CheckCircle2 : current ? CircleDot : Clock3;
             return (
-              <li key={stage} className="flex flex-1 items-center">
+              <li key={stage} className="min-w-0">
                 <div
-                  className={`flex w-full items-center gap-2 rounded-lg border px-2 py-2 ${current ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm" : done ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-400"}`}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 ${current ? "border-blue-500 bg-blue-50 text-blue-800 shadow-sm" : done ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-400"}`}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span className="whitespace-nowrap text-[10px] font-bold">
                     {c(TASK_STAGE_META[stage].ar, TASK_STAGE_META[stage].en)}
                   </span>
                 </div>
-                {index < stages.length - 1 && (
-                  <ChevronLeft
-                    className={`mx-1 h-3.5 w-3.5 shrink-0 text-slate-300 ${!isRtl ? "rotate-180" : ""}`}
-                  />
-                )}
               </li>
             );
           })}
@@ -829,18 +833,33 @@ export const TasksView: React.FC<TasksViewProps> = ({
   function TaskDetailsModal() {
     if (!selectedTask) return null;
     const overdue = isTaskOverdue(selectedTask);
-    const isClosed = ["completed", "cancelled"].includes(selectedTask.status);
+    const isClosed = selectedTask.status === "cancelled";
     const canWorkOnTask =
       selectedTask.assigneeIds.includes(currentUser.id) ||
       canEditTask(selectedTask);
-    const allowedTransitions = getAllowedTaskTransitions(
-      selectedTask.status,
-    ).filter(
+    const isTaskManager = canEditTask(selectedTask);
+    const allowedTransitions = getAllowedTaskTransitions(selectedTask.status).filter(
       (next) =>
-        next !== "completed" &&
-        next !== "needs_revision" &&
-        (next !== "cancelled" || canEditTask(selectedTask)),
+        (next !== "completed" && next !== "needs_revision" || isTaskManager) &&
+        (next !== "cancelled" || isTaskManager) &&
+        (selectedTask.status !== "completed" || isTaskManager),
     );
+    const returnStage: Partial<Record<TaskStatus, TaskStatus>> = {
+      in_progress: "not_started",
+      blocked: "in_progress",
+      submitted: "in_progress",
+      needs_revision: "in_progress",
+      completed: "submitted",
+      overdue: "in_progress",
+    };
+    const backTo = returnStage[selectedTask.status];
+    const primaryNext: Partial<Record<TaskStatus, TaskStatus>> = {
+      not_started: "in_progress",
+      in_progress: "submitted",
+      blocked: "in_progress",
+      needs_revision: "submitted",
+    };
+    const advanceTo = primaryNext[selectedTask.status];
     return (
       <div
         className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
@@ -1078,6 +1097,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 </div>
                 {!isClosed && (
                   <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold text-blue-950">{c(`المرحلة الحالية: ${TASK_STAGE_META[selectedTask.status].ar}`, `Current stage: ${TASK_STAGE_META[selectedTask.status].en}`)}</span>
+                      <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200">{c('كل تحديث يصل للمدير', 'Every update reaches the manager')}</span>
+                    </div>
                     <h3 className="text-xs font-bold text-blue-950">
                       {c("الإجراء التالي", "Next action")}
                     </h3>
@@ -1098,7 +1121,27 @@ export const TasksView: React.FC<TasksViewProps> = ({
                       className="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-xs"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {allowedTransitions.map((next) => (
+                      {advanceTo && allowedTransitions.includes(advanceTo) && (
+                        <button
+                          type="button"
+                          disabled={working}
+                          onClick={() => runTransition(selectedTask, advanceTo, note)}
+                          className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+                        >
+                          {c(`إتمام المرحلة: ${TASK_STAGE_META[advanceTo].ar}`, `Complete stage: ${TASK_STAGE_META[advanceTo].en}`)}
+                        </button>
+                      )}
+                      {backTo && allowedTransitions.includes(backTo) && (
+                        <button
+                          type="button"
+                          disabled={working}
+                          onClick={() => runTransition(selectedTask, backTo, note)}
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
+                        >
+                          {c(`إرجاع إلى: ${TASK_STAGE_META[backTo].ar}`, `Return to: ${TASK_STAGE_META[backTo].en}`)}
+                        </button>
+                      )}
+                      {allowedTransitions.filter((next) => next !== advanceTo && next !== backTo).map((next) => (
                         <button
                           type="button"
                           key={next}
@@ -1120,7 +1163,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     </div>
                   </section>
                 )}
-                {isFullAccessUser && selectedTask.status === "submitted" && (
+                {isTaskManager && selectedTask.status === "submitted" && (
                   <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
                     <h3 className="text-xs font-bold text-emerald-950">
                       {c(
