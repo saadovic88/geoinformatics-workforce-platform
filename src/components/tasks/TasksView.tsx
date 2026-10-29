@@ -32,7 +32,9 @@ import { Task, TaskPriority, TaskStatus } from "../../types";
 import {
   ACTIVE_TASK_STAGES,
   getAllowedTaskTransitions,
+  getReturnTaskStages,
   getVisitedTaskStages,
+  isTaskReturnTransition,
   isTaskOverdue,
   TASK_STAGE_META,
   TaskPeriod,
@@ -134,6 +136,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [timeHours, setTimeHours] = useState(1);
   const [reviewScore, setReviewScore] = useState(95);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [returnStageTarget, setReturnStageTarget] = useState<TaskStatus | "">("");
   const [editing, setEditing] = useState(false);
   const companyToday = useMemo(() => companyDate(), []);
   const defaultDueDate = useMemo(() => addCompanyDays(companyToday, 7), [companyToday]);
@@ -255,6 +258,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
     setDetailTab("overview");
     setFeedback("");
     setEditing(false);
+    setReturnStageTarget("");
   };
   const activityText = (action: string) => {
     if (!isRtl) return action;
@@ -278,11 +282,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
     nextStatus: TaskStatus,
     transitionNote?: string,
   ) => {
-    const returning = (task.status === 'in_progress' && nextStatus === 'not_started')
-      || (task.status === 'blocked' && nextStatus === 'not_started')
-      || (task.status === 'submitted' && nextStatus === 'in_progress')
-      || (task.status === 'needs_revision' && ['not_started', 'in_progress'].includes(nextStatus))
-      || (task.status === 'completed' && ['submitted', 'needs_revision'].includes(nextStatus));
+    const returning = isTaskReturnTransition(task.status, nextStatus);
     if ((returning || ['blocked', 'needs_revision', 'cancelled'].includes(nextStatus)) && !transitionNote?.trim()) {
       setFeedback(c('اكتب سببًا واضحًا قبل إرجاع المهمة أو إيقافها أو طلب تعديلها.', 'Add a clear reason before returning, blocking, or requesting a revision.'));
       return;
@@ -830,12 +830,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </div>
         </div>
       )}
-      {selectedTask && <TaskDetailsModal />}
+      {selectedTask && renderTaskDetailsModal()}
       {showCreate && <CreateTaskModal />}
     </section>
   );
 
-  function TaskDetailsModal() {
+  // Keep this as a render helper, not a nested React component. A component
+  // declared inside TasksView gets a new identity on every state update and
+  // remounts while a user is typing a return reason.
+  function renderTaskDetailsModal() {
     if (!selectedTask) return null;
     const overdue = isTaskOverdue(selectedTask);
     const isClosed = selectedTask.status === "cancelled";
@@ -865,6 +868,14 @@ export const TasksView: React.FC<TasksViewProps> = ({
       needs_revision: "submitted",
     };
     const advanceTo = primaryNext[selectedTask.status];
+    const returnTargets = (isTaskManager
+      ? getReturnTaskStages(selectedTask.status)
+      : backTo ? [backTo] : []
+    ).filter((stage) => allowedTransitions.includes(stage));
+    const hasDirectReturn = Boolean(
+      backTo && allowedTransitions.includes(backTo) && returnTargets.length <= 1,
+    );
+    const returnReasonRequired = Boolean(returnStageTarget) || hasDirectReturn;
     return (
       <div
         className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
@@ -1101,29 +1112,39 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   </p>
                 </div>
                 {!isClosed && (
-                  <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+                  <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-sky-400/35 dark:bg-slate-900">
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-extrabold text-blue-950">{c(`المرحلة الحالية: ${TASK_STAGE_META[selectedTask.status].ar}`, `Current stage: ${TASK_STAGE_META[selectedTask.status].en}`)}</span>
-                      <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200">{c('كل تحديث يصل للمدير', 'Every update reaches the manager')}</span>
+                      <span className="text-xs font-extrabold text-blue-950 dark:text-sky-100">{c(`المرحلة الحالية: ${TASK_STAGE_META[selectedTask.status].ar}`, `Current stage: ${TASK_STAGE_META[selectedTask.status].en}`)}</span>
+                      <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200 dark:bg-slate-800 dark:text-sky-200 dark:ring-sky-300/30">{c('كل تحديث يصل للمدير', 'Every update reaches the manager')}</span>
                     </div>
-                    <h3 className="text-xs font-bold text-blue-950">
+                    <h3 className="text-xs font-bold text-blue-950 dark:text-sky-100">
                       {c("الإجراء التالي", "Next action")}
                     </h3>
-                    <p className="mt-1 text-[11px] text-blue-800">
+                    <p className="mt-1 text-[11px] text-blue-800 dark:text-sky-200">
                       {c(
-                        "اكتب سبب التوقف أو التعديل أو الأرشفة عند الحاجة؛ سيظهر في السجل ويرسل للأطراف المعنية.",
-                        "Add a reason for a block, revision, or archive when needed; it is saved in the record and sent to relevant people.",
+                        returnReasonRequired
+                          ? "سبب الإرجاع مطلوب عند إعادة المهمة. ستصبح المهمة نشطة مرة أخرى، وسيظهر السبب في السجل ويرسل للأطراف المعنية."
+                          : "اكتب سبب التوقف أو التعديل أو الأرشفة عند الحاجة؛ سيظهر في السجل ويرسل للأطراف المعنية.",
+                        returnReasonRequired
+                          ? "A return reason is required when returning work. The task will become active again, and the reason is saved in the record and sent to relevant people."
+                          : "Add a reason for a block, revision, or archive when needed; it is saved in the record and sent to relevant people.",
                       )}
                     </p>
+                    {returnReasonRequired && (
+                      <label className="mt-2 block text-[11px] font-extrabold text-amber-900 dark:text-amber-200">
+                        {c("سبب الإرجاع (مطلوب عند الإرجاع)", "Reason for return (required when returning)")}
+                      </label>
+                    )}
                     <textarea
                       value={note}
                       onChange={(event) => setNote(event.target.value)}
                       placeholder={c(
-                        "اكتب ملاحظة واضحة عند الحاجة...",
-                        "Write a clear note when needed...",
+                        returnReasonRequired ? "اكتب سبب الإرجاع بوضوح..." : "اكتب ملاحظة واضحة عند الحاجة...",
+                        returnReasonRequired ? "Explain why this task is being returned..." : "Write a clear note when needed...",
                       )}
                       rows={2}
-                      className="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-xs"
+                      aria-required={returnReasonRequired}
+                      className="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-xs dark:border-sky-300/35 dark:bg-slate-800 dark:text-slate-100"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
                       {advanceTo && allowedTransitions.includes(advanceTo) && (
@@ -1136,17 +1157,40 @@ export const TasksView: React.FC<TasksViewProps> = ({
                           {c(`إتمام المرحلة: ${TASK_STAGE_META[advanceTo].ar}`, `Complete stage: ${TASK_STAGE_META[advanceTo].en}`)}
                         </button>
                       )}
-                      {backTo && allowedTransitions.includes(backTo) && (
+                      {backTo && allowedTransitions.includes(backTo) && returnTargets.length <= 1 && (
                         <button
                           type="button"
-                          disabled={working}
+                          disabled={working || !note.trim()}
                           onClick={() => runTransition(selectedTask, backTo, note)}
-                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-300/50 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/50"
                         >
                           {c(`إرجاع إلى: ${TASK_STAGE_META[backTo].ar}`, `Return to: ${TASK_STAGE_META[backTo].en}`)}
                         </button>
                       )}
-                      {allowedTransitions.filter((next) => next !== advanceTo && next !== backTo).map((next) => (
+                      {returnTargets.length > 1 && (
+                        <div className="flex min-w-[15rem] flex-1 flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 p-2 dark:border-amber-300/45 dark:bg-amber-950/50 sm:flex-row sm:items-center">
+                          <label className="text-[10px] font-extrabold text-amber-900 dark:text-amber-100">
+                            {c("إرجاع المرحلة", "Return stage")}
+                            <select
+                              value={returnStageTarget}
+                              onChange={(event) => setReturnStageTarget(event.target.value as TaskStatus)}
+                              className="ms-1.5 min-h-9 max-w-full rounded-md border border-amber-200 bg-white px-2 text-xs font-bold text-slate-800 dark:border-amber-300/45 dark:bg-slate-800 dark:text-amber-50"
+                            >
+                              <option value="">{c("اختر مرحلة سابقة", "Choose an earlier stage")}</option>
+                              {returnTargets.map((stage) => <option key={stage} value={stage}>{c(TASK_STAGE_META[stage].ar, TASK_STAGE_META[stage].en)}</option>)}
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            disabled={working || !returnStageTarget || !note.trim()}
+                            onClick={() => returnStageTarget && void runTransition(selectedTask, returnStageTarget, note)}
+                            className="min-h-9 rounded-md border border-amber-300 bg-white px-2.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-300/50 dark:bg-slate-800 dark:text-amber-100 dark:hover:bg-amber-900/50"
+                          >
+                            {c("تأكيد الإرجاع", "Confirm return")}
+                          </button>
+                        </div>
+                      )}
+                      {allowedTransitions.filter((next) => next !== advanceTo && next !== backTo && !returnTargets.includes(next)).map((next) => (
                         <button
                           type="button"
                           key={next}
@@ -1156,10 +1200,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
                           }
                           className={`rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-60 ${next === "cancelled" ? "border-slate-300 bg-white text-slate-700" : next === "blocked" ? "border-rose-200 bg-rose-600 text-white" : "border-blue-600 bg-blue-600 text-white"}`}
                         >
-                          {c(
-                            TASK_STAGE_META[next].ar,
-                            TASK_STAGE_META[next].en,
-                          )}
+                          {next === "cancelled"
+                            ? c("أرشفة المهمة", "Archive task")
+                            : c(
+                                TASK_STAGE_META[next].ar,
+                                TASK_STAGE_META[next].en,
+                              )}
                         </button>
                       ))}
                       {working && (

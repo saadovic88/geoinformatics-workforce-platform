@@ -16,9 +16,12 @@ test('task workflow permits only explicit stage transitions', () => {
   assert.equal(canTransitionTask('not_started', 'in_progress'), true);
   assert.equal(canTransitionTask('not_started', 'completed'), false);
   assert.equal(canTransitionTask('submitted', 'needs_revision'), true);
-  assert.equal(canTransitionTask('completed', 'in_progress'), false);
+  assert.equal(canTransitionTask('completed', 'in_progress'), true);
+  assert.equal(canTransitionTask('completed', 'not_started'), true);
+  assert.equal(canTransitionTask('completed', 'blocked'), true);
   assert.equal(canTransitionTask('in_progress', 'not_started'), true);
   assert.equal(canTransitionTask('submitted', 'in_progress'), true);
+  assert.equal(canTransitionTask('submitted', 'not_started'), true);
   assert.equal(canTransitionTask('completed', 'submitted'), true);
 });
 
@@ -74,4 +77,19 @@ test('flexible workflow migration retains returns and requires a reason', () => 
   assert.match(migration, /when 'completed' then next_status in \('submitted','needs_revision','cancelled'\)/);
   assert.match(migration, /is_return/);
   assert.match(migration, /recipient::text = task_payload->>'creatorId'/);
+});
+
+test('reopen migration preserves an audit trail while allowing completed work to become active', () => {
+  const migration = readFileSync('supabase/migrations/0030_reopen_task_stages.sql', 'utf8');
+  assert.ok(migration.includes("when 'completed' then next_status in ('not_started', 'in_progress', 'blocked', 'submitted', 'needs_revision', 'cancelled')"));
+  assert.match(migration, /\('completed', 'not_started'\)/);
+  assert.ok(migration.includes("'{reopenedAt}'"));
+  assert.match(migration, /A reason is required when returning/);
+});
+
+test('task details use a stable render helper while a user types a workflow reason', () => {
+  const view = readFileSync('src/components/tasks/TasksView.tsx', 'utf8');
+  assert.match(view, /\{selectedTask && renderTaskDetailsModal\(\)\}/);
+  assert.doesNotMatch(view, /<TaskDetailsModal\s*\/>/);
+  assert.match(view, /Reason for return \(required when returning\)/);
 });

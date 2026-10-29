@@ -20,14 +20,28 @@ const TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
   not_started: ['in_progress', 'blocked', 'cancelled'],
   in_progress: ['not_started', 'blocked', 'submitted', 'cancelled'],
   blocked: ['not_started', 'in_progress', 'cancelled'],
-  submitted: ['in_progress', 'needs_revision', 'completed', 'cancelled'],
+  submitted: ['not_started', 'in_progress', 'blocked', 'needs_revision', 'completed', 'cancelled'],
   needs_revision: ['not_started', 'in_progress', 'blocked', 'submitted', 'cancelled'],
   overdue: ['not_started', 'in_progress', 'blocked', 'submitted', 'cancelled'],
-  completed: ['submitted', 'needs_revision', 'cancelled'],
+  completed: ['not_started', 'in_progress', 'blocked', 'submitted', 'needs_revision', 'cancelled'],
 };
 
 export const getAllowedTaskTransitions = (status: TaskStatus) => TRANSITIONS[status] || [];
 export const canTransitionTask = (from: TaskStatus, to: TaskStatus) => getAllowedTaskTransitions(from).includes(to);
+
+/** A return reactivates work and must be explained in the permanent audit trail. */
+export const isTaskReturnTransition = (from: TaskStatus, to: TaskStatus) => {
+  if (from === 'completed') return to !== 'cancelled';
+  if (from === 'submitted') return ['not_started', 'in_progress', 'blocked'].includes(to);
+  if (from === 'needs_revision') return ['not_started', 'in_progress', 'blocked'].includes(to);
+  if (from === 'blocked') return to === 'not_started';
+  if (from === 'in_progress') return to === 'not_started';
+  if (from === 'overdue') return ['not_started', 'in_progress'].includes(to);
+  return false;
+};
+
+export const getReturnTaskStages = (status: TaskStatus) =>
+  getAllowedTaskTransitions(status).filter((next) => isTaskReturnTransition(status, next));
 export const isTaskArchived = (task: Task) => task.status === 'cancelled' || Boolean(task.archivedAt);
 export const isTaskOverdue = (task: Task, now = new Date()) =>
   !['completed', 'cancelled'].includes(task.status) && task.dueDate < companyDate(now);
