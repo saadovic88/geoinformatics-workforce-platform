@@ -831,7 +831,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
         </div>
       )}
       {selectedTask && renderTaskDetailsModal()}
-      {showCreate && <CreateTaskModal />}
+      {showCreate && renderCreateTaskModal()}
     </section>
   );
 
@@ -1710,7 +1710,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
     window.open(result.url, "_blank", "noopener,noreferrer");
   };
 
-  function CreateTaskModal() {
+  // Keep this as a render helper instead of a component declaration inside
+  // TasksView. A nested React component gets a new identity on each keystroke,
+  // which remounts its inputs and causes focus to be lost while typing.
+  function renderCreateTaskModal() {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4">
         <form

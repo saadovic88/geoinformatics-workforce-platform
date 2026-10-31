@@ -93,3 +93,9 @@ test('task details use a stable render helper while a user types a workflow reas
   assert.doesNotMatch(view, /<TaskDetailsModal\s*\/>/);
   assert.match(view, /Reason for return \(required when returning\)/);
 });
+
+test('task creation form keeps a stable identity while a user types', () => {
+  const view = readFileSync('src/components/tasks/TasksView.tsx', 'utf8');
+  assert.match(view, /\{showCreate && renderCreateTaskModal\(\)\}/);
+  assert.doesNotMatch(view, /<CreateTaskModal\s*\/>/);
+});

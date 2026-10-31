@@ -48,11 +48,12 @@ export const MyCVView: React.FC = () => {
   const admin = ADMIN_EMAILS.has(currentUser.email.toLowerCase());
   const selected = users.find((user) => user.id === selectedId) || currentUser;
   const viewingOther = selectedId !== currentUser.id;
+  const canEditSelected = !viewingOther || admin;
   const profile = viewingOther ? (profiles[selectedId] || defaultProfile(selected)) : own;
   const t = useMemo(() => isRtl ? {
     title: 'سيرتي الذاتية المهنية', subtitle: 'عدّل بياناتك المهنية بالتفصيل ثم نزّل سيرتك الذاتية كملف PDF.',
-    managerSubtitle: 'أنت تستعرض سيرة الموظف بصلاحية قراءة فقط. لا يمكن للإدارة تعديل بياناته.',
-    private: 'خاص وآمن', admin: 'إدارة السير الذاتية', choose: 'اختر موظفًا للعرض', readonly: 'للعرض فقط',
+    managerSubtitle: 'يمكنك مراجعة السيرة الذاتية للموظف وتنزيلها.', managerEditSubtitle: 'يمكنك مراجعة وتحديث السيرة الذاتية للموظف ثم حفظ التعديلات بأمان.',
+    private: 'خاص وآمن', admin: 'إدارة السير الذاتية', choose: 'اختر موظفًا للعرض', readonly: 'للعرض فقط', editable: 'يمكن التعديل',
     save: 'حفظ التعديلات', pdf: 'تنزيل سيرتي PDF', employeePdf: 'تنزيل PDF الموظف', loading: 'جارٍ تحميل السيرة الذاتية…',
     saved: 'تم حفظ التعديلات بنجاح.', error: 'تعذر حفظ البيانات. حاول مجددًا.',
     summary: 'الملخص المهني', skills: 'التخصصات والمهارات', experience: 'الخبرات والإنجازات',
@@ -60,8 +61,8 @@ export const MyCVView: React.FC = () => {
     portfolio: 'رابط الأعمال أو الملف المهني', location: 'الموقع أو المدينة',
   } : {
     title: 'My professional CV', subtitle: 'Edit your professional details and download your CV as a PDF.',
-    managerSubtitle: 'You are viewing this employee CV in read-only mode. Management cannot edit employee details.',
-    private: 'Private & secure', admin: 'CV administration', choose: 'Choose an employee to view', readonly: 'Read-only',
+    managerSubtitle: 'You can review and download this employee CV.', managerEditSubtitle: 'You can review, update, and safely save this employee CV.',
+    private: 'Private & secure', admin: 'CV administration', choose: 'Choose an employee to view', readonly: 'Read-only', editable: 'Editable',
     save: 'Save changes', pdf: 'Download my PDF', employeePdf: 'Download employee PDF', loading: 'Loading CV…',
     saved: 'Your changes have been saved.', error: 'We could not save the details. Please try again.',
     summary: 'Professional summary', skills: 'Specializations & skills', experience: 'Experience & achievements',
@@ -105,12 +106,16 @@ export const MyCVView: React.FC = () => {
     setNotice(null);
     try {
       if (!supabase) {
-        localStorage.setItem(`geo_cv_${currentUser.id}`, JSON.stringify(own));
+        localStorage.setItem(`geo_cv_${selected.id}`, JSON.stringify(profile));
       } else {
-        const { error } = await requireSupabase().rpc('save_own_cv_profile', { cv_payload: own });
+        const { error } = await requireSupabase().rpc('save_employee_cv_profile', {
+          target_employee_id: selected.id,
+          cv_payload: profile,
+        });
         if (error) throw error;
       }
-      setProfiles((previous) => ({ ...previous, [currentUser.id]: own }));
+      setProfiles((previous) => ({ ...previous, [selected.id]: profile }));
+      if (!viewingOther) setOwn(profile);
       setNotice({ text: t.saved });
     } catch (error) {
       console.error('Unable to save CV', error);
@@ -118,6 +123,17 @@ export const MyCVView: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateProfile = (field: Field, value: string) => {
+    if (!viewingOther) {
+      setOwn((previous) => ({ ...previous, [field]: value }));
+      return;
+    }
+    setProfiles((previous) => ({
+      ...previous,
+      [selectedId]: { ...(previous[selectedId] || defaultProfile(selected)), [field]: value },
+    }));
   };
 
   const download = () => {
@@ -142,9 +158,9 @@ export const MyCVView: React.FC = () => {
         <div className="flex min-w-0 items-center gap-4">
           <img src={selected.avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-2xl border-2 border-white object-cover shadow-sm dark:border-slate-700" />
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-slate-900 dark:text-white">{viewingOther ? selected.nameEn : t.title}</h1>{viewingOther && <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-extrabold text-amber-800 dark:bg-amber-900/60 dark:text-amber-100"><LockKeyhole className="h-3.5 w-3.5" />{t.readonly}</span>}</div>
+            <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-slate-900 dark:text-white">{viewingOther ? selected.nameEn : t.title}</h1>{viewingOther && <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-extrabold ${canEditSelected ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-100'}`}><LockKeyhole className="h-3.5 w-3.5" />{canEditSelected ? t.editable : t.readonly}</span>}</div>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{selected.jobTitleEn} · {selected.employeeCode}</p>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{viewingOther ? t.managerSubtitle : t.subtitle}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{viewingOther ? (canEditSelected ? t.managerEditSubtitle : t.managerSubtitle) : t.subtitle}</p>
           </div>
         </div>
         <button type="button" onClick={download} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"><Download className="h-4 w-4" />{viewingOther ? t.employeePdf : t.pdf}</button>
@@ -153,15 +169,15 @@ export const MyCVView: React.FC = () => {
 
     {admin && <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/70 dark:bg-amber-950/30">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-2 text-amber-900 dark:text-amber-200"><ShieldCheck className="h-5 w-5" /><div><h2 className="font-black">{t.admin}</h2><p className="text-xs font-medium opacity-80">{t.readonly}</p></div></div>
+        <div className="flex flex-1 items-center gap-2 text-amber-900 dark:text-amber-200"><ShieldCheck className="h-5 w-5" /><div><h2 className="font-black">{t.admin}</h2><p className="text-xs font-medium opacity-80">{t.editable}</p></div></div>
         <label className="min-w-64"><span className="sr-only">{t.choose}</span><select value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className="min-h-11 w-full rounded-xl border border-amber-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-400 dark:border-amber-800 dark:bg-slate-900 dark:text-white">{users.filter((user) => user.status === 'active').map((user) => <option key={user.id} value={user.id}>{user.nameEn} — {user.employeeCode}</option>)}</select></label>
       </div>
     </section>}
 
-    <main aria-readonly={viewingOther} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+    <main aria-readonly={!canEditSelected} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
       <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800"><div><h2 className="font-black text-slate-900 dark:text-white">{selected.nameEn}</h2><p className="text-xs text-slate-500 dark:text-slate-400">{selected.email}</p></div><UserRound className="h-5 w-5 text-blue-600" /></div>
-      <div className="grid gap-4">{fields.map(([field, label, multiline]) => <label key={field} className="grid gap-1.5"><span className="text-sm font-bold text-slate-800 dark:text-slate-100">{t[label]}</span>{multiline ? <textarea value={profile[field]} readOnly={viewingOther} rows={field === 'professionalSummary' ? 4 : 5} maxLength={5000} onChange={(event) => setOwn((old) => ({ ...old, [field]: event.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm leading-6 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 read-only:cursor-default read-only:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-900 dark:read-only:bg-slate-800" /> : <input value={profile[field]} readOnly={viewingOther} maxLength={1000} onChange={(event) => setOwn((old) => ({ ...old, [field]: event.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 read-only:cursor-default read-only:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-900 dark:read-only:bg-slate-800" />}</label>)}</div>
-      {!viewingOther && <button type="button" onClick={() => void save()} disabled={saving} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-blue-600"><Save className="h-4 w-4" />{t.save}</button>}
+      <div className="grid gap-4">{fields.map(([field, label, multiline]) => <label key={field} className="grid gap-1.5"><span className="text-sm font-bold text-slate-800 dark:text-slate-100">{t[label]}</span>{multiline ? <textarea value={profile[field]} readOnly={!canEditSelected} rows={field === 'professionalSummary' ? 4 : 5} maxLength={5000} onChange={(event) => updateProfile(field, event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm leading-6 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 read-only:cursor-default read-only:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-900 dark:read-only:bg-slate-800" /> : <input value={profile[field]} readOnly={!canEditSelected} maxLength={1000} onChange={(event) => updateProfile(field, event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 read-only:cursor-default read-only:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-900 dark:read-only:bg-slate-800" />}</label>)}</div>
+      {canEditSelected && <button type="button" onClick={() => void save()} disabled={saving} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-blue-600"><Save className="h-4 w-4" />{t.save}</button>}
     </main>
     {notice && <div role="status" className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${notice.error ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'}`}>{notice.error ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}{notice.text}</div>}
   </section>;
