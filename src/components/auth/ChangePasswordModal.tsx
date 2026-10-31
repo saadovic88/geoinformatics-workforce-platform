@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { KeyRound, ShieldCheck, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -34,17 +35,31 @@ export function ChangePasswordModal({ onClose, recovery = false }: { onClose: ()
     } finally { setBusy(false); }
   };
 
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="change-password-title" dir={isRtl ? 'rtl' : 'ltr'}>
-    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">
-      <h2 id="change-password-title" className="text-lg font-bold text-slate-900 dark:text-white">{isRtl ? 'تغيير كلمة المرور' : 'Change password'}</h2>
-      {success ? <p role="status" className="mt-4 text-sm text-emerald-700">{isRtl ? 'تم تغيير كلمة المرور بنجاح.' : 'Your password was changed.'}</p> : <form onSubmit={submit} className="mt-4 space-y-3">
-        {!recovery && <label className="block text-sm text-slate-700 dark:text-slate-200">{isRtl ? 'كلمة المرور الحالية' : 'Current password'}<input required autoComplete="current-password" type="password" value={current} onChange={e => setCurrent(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900" /></label>}
-        <label className="block text-sm text-slate-700 dark:text-slate-200">{isRtl ? 'كلمة المرور الجديدة (8 أحرف على الأقل)' : 'New password (at least 8 characters)'}<input required minLength={8} autoComplete="new-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900" /></label>
-        <label className="block text-sm text-slate-700 dark:text-slate-200">{isRtl ? 'تأكيد كلمة المرور الجديدة' : 'Confirm new password'}<input required autoComplete="new-password" type="password" value={confirmation} onChange={e => setConfirmation(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900" /></label>
-        {message && <p role="alert" className="text-sm text-rose-600">{message}</p>}
-        <button disabled={busy} type="submit" className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? '...' : isRtl ? 'حفظ كلمة المرور' : 'Save password'}</button>
-      </form>}
-      <button type="button" onClick={onClose} disabled={busy} className="mt-4 text-sm font-semibold text-slate-500">{isRtl ? 'إغلاق' : 'Close'}</button>
-    </div>
+  return <div className="fixed inset-0 z-[100] flex min-h-full items-start justify-center overflow-y-auto bg-slate-950/60 p-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:p-6" dir={isRtl ? 'rtl' : 'ltr'}>
+    <section role="dialog" aria-modal="true" aria-labelledby="change-password-title" className="change-password-dialog my-auto w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_70px_-28px_rgba(15,23,42,.72)] dark:border-slate-700 dark:bg-slate-900">
+      <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-l from-blue-50/90 via-white to-white px-5 py-4 dark:border-slate-800 dark:from-blue-950/35 dark:via-slate-900 dark:to-slate-900 sm:px-6">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-blue-100 bg-blue-600 text-white shadow-sm dark:border-blue-800"><KeyRound className="h-5 w-5" /></span>
+          <div>
+            <h2 id="change-password-title" className="text-lg font-black text-slate-900 dark:text-white">{isRtl ? 'تغيير كلمة المرور' : 'Change password'}</h2>
+            <p className="mt-0.5 text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">{recovery ? (isRtl ? 'أنشئ كلمة مرور جديدة لحسابك.' : 'Create a new password for your account.') : (isRtl ? 'استخدم كلمة قوية لحماية حسابك.' : 'Use a strong password to protect your account.')}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} disabled={busy} aria-label={isRtl ? 'إغلاق النافذة' : 'Close dialog'} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"><X className="h-5 w-5" /></button>
+      </header>
+      <div className="p-5 sm:p-6">
+        {success ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/45 dark:text-emerald-200"><ShieldCheck className="mb-2 h-5 w-5" />{isRtl ? 'تم تغيير كلمة المرور بنجاح.' : 'Your password was changed.'}</div> : <form onSubmit={submit} className="space-y-4">
+          {!recovery && <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">{isRtl ? 'كلمة المرور الحالية' : 'Current password'}<input required autoComplete="current-password" type="password" value={current} onChange={e => setCurrent(e.target.value)} className="mt-1.5 min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:bg-slate-950 dark:focus:ring-blue-900" /></label>}
+          <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">{isRtl ? 'كلمة المرور الجديدة' : 'New password'}<span className="ms-1 text-xs font-medium text-slate-400">{isRtl ? '(8 أحرف على الأقل)' : '(at least 8 characters)'}</span><input required minLength={8} autoComplete="new-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:bg-slate-950 dark:focus:ring-blue-900" /></label>
+          <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">{isRtl ? 'تأكيد كلمة المرور الجديدة' : 'Confirm new password'}<input required autoComplete="new-password" type="password" value={confirmation} onChange={e => setConfirmation(e.target.value)} className="mt-1.5 min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:bg-slate-950 dark:focus:ring-blue-900" /></label>
+          {message && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm font-semibold leading-5 text-rose-700 dark:border-rose-900 dark:bg-rose-950/45 dark:text-rose-200">{message}</p>}
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" onClick={onClose} disabled={busy} className="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{isRtl ? 'إلغاء' : 'Cancel'}</button>
+            <button disabled={busy} type="submit" className="min-h-11 rounded-xl bg-blue-700 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-500 dark:focus:ring-blue-900">{busy ? '...' : isRtl ? 'حفظ كلمة المرور' : 'Save password'}</button>
+          </div>
+        </form>}
+        {success && <button type="button" onClick={onClose} disabled={busy} className="mt-4 min-h-11 w-full rounded-xl bg-slate-100 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">{isRtl ? 'إغلاق' : 'Close'}</button>}
+      </div>
+    </section>
   </div>;
 }
