@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { KeyRound, ShieldCheck, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -35,7 +36,7 @@ export function ChangePasswordModal({ onClose, recovery = false }: { onClose: ()
     } finally { setBusy(false); }
   };
 
-  return <div className="fixed inset-0 z-[100] flex min-h-full items-start justify-center overflow-y-auto bg-slate-950/60 p-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:p-6" dir={isRtl ? 'rtl' : 'ltr'}>
+  const modal = <div className="fixed inset-0 z-[200] flex min-h-[100dvh] items-start justify-center overflow-y-auto bg-slate-950/60 p-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:p-6" dir={isRtl ? 'rtl' : 'ltr'}>
     <section role="dialog" aria-modal="true" aria-labelledby="change-password-title" className="change-password-dialog my-auto w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_70px_-28px_rgba(15,23,42,.72)] dark:border-slate-700 dark:bg-slate-900">
       <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-l from-blue-50/90 via-white to-white px-5 py-4 dark:border-slate-800 dark:from-blue-950/35 dark:via-slate-900 dark:to-slate-900 sm:px-6">
         <div className="flex min-w-0 items-start gap-3">
@@ -62,4 +63,10 @@ export function ChangePasswordModal({ onClose, recovery = false }: { onClose: ()
       </div>
     </section>
   </div>;
+
+  // Navbar is sticky; rendering the overlay beneath its DOM tree makes some
+  // desktop browsers clip a fixed child at the header boundary. Rendering at
+  // document.body gives the dialog the actual viewport and prevents the white
+  // strip / cut-off form seen when changing a password.
+  return createPortal(modal, document.body);
 }

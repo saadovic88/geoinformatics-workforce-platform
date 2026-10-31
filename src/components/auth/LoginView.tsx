@@ -57,16 +57,19 @@ export const LoginView: React.FC = () => {
 
   return <main dir={isRtl ? 'rtl' : 'ltr'} className="login-shell relative grid min-h-[100dvh] place-items-center overflow-x-hidden bg-slate-100 p-3 text-slate-900 selection:bg-blue-700 selection:text-white sm:p-6">
     <div aria-hidden="true" className="absolute inset-0 login-grid-texture" />
-    <button type="button" onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="absolute end-4 top-4 z-20 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 text-xs font-bold text-slate-700 shadow-sm backdrop-blur transition hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:end-6 sm:top-6"><Globe2 className="h-4 w-4 text-blue-600" />{language === 'en' ? 'العربية' : 'English'}</button>
-    <section className="relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_30px_80px_-34px_rgba(15,41,77,.4)] lg:min-h-[40rem] lg:grid-cols-[1.03fr_.97fr]">
-      <aside className="relative hidden overflow-hidden bg-[#0c2547] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+    <div aria-hidden="true" className="login-horizon" />
+    <div aria-hidden="true" className="login-orbit login-orbit-one" />
+    <div aria-hidden="true" className="login-orbit login-orbit-two" />
+    <button type="button" onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="login-language-switch absolute end-4 top-4 z-20 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 text-xs font-bold text-slate-700 shadow-sm backdrop-blur transition hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:end-6 sm:top-6"><Globe2 className="h-4 w-4 text-blue-600" />{language === 'en' ? 'العربية' : 'English'}</button>
+    <section className="login-entry-card relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_30px_80px_-34px_rgba(15,41,77,.4)] lg:min-h-[40rem] lg:grid-cols-[1.03fr_.97fr]">
+      <aside className="login-command-panel relative hidden overflow-hidden bg-[#0c2547] p-10 text-white lg:flex lg:flex-col lg:justify-between">
         <div aria-hidden="true" className="absolute inset-0 login-brand-grid opacity-80" />
         <div aria-hidden="true" className="absolute -end-28 top-20 h-72 w-72 rounded-full border border-sky-300/25" />
         <div aria-hidden="true" className="absolute -start-24 bottom-[-4rem] h-80 w-80 rounded-full border border-blue-300/20" />
         <div className="relative"><CompanyLogo size="lg" showText textClassName="text-white [&_span.font-black]:text-white [&_span.text-blue-600]:text-sky-300" /><div className="mt-10 max-w-md"><p className="text-xs font-bold uppercase tracking-[.18em] text-sky-200">{copy.platform}</p><h1 className="mt-4 text-4xl font-black leading-[1.12] tracking-tight">{copy.welcome}</h1><p className="mt-5 text-sm leading-7 text-slate-300">{copy.body}</p></div></div>
         <div className="relative border-t border-white/15 pt-6"><div className="flex items-center gap-3 text-sm text-slate-200"><span className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-300"><ShieldCheck className="h-4 w-4" /></span>{copy.secure}</div><p className="mt-4 text-xs leading-6 text-slate-400">{copy.brand}</p></div>
       </aside>
-      <div className="flex min-w-0 flex-col p-5 sm:p-8 lg:p-10">
+      <div className="login-credential-panel flex min-w-0 flex-col p-5 sm:p-8 lg:p-10">
         <div className="mb-8 flex items-center justify-between gap-4 lg:hidden"><CompanyLogo size="md" showText /><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,.12)]" /></div>
         <div className="mb-7"><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[.13em] text-blue-700"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" />GEOINFORMATICS</div><h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{t('loginTitle')}</h2><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{copy.signIn}</p></div>
         {errorMessage && <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs font-semibold leading-5 text-rose-800"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-rose-500" />{errorMessage}</div>}
