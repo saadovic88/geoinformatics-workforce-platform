@@ -25,9 +25,12 @@ import {
   Camera,
   MapPin,
   Inbox,
+  KeyRound,
+  RotateCcw,
 } from 'lucide-react';
 import { exportIndividualEmployeeDossierCSV, triggerPrintReport } from '../../utils/exportUtils';
 import { UserAvatar } from '../common/UserAvatar';
+import { supabase } from '../../lib/supabase';
 
 interface EmployeeProfileModalProps {
   user: User | null;
@@ -48,12 +51,47 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
   const [phone, setPhone] = useState(user?.phone || '');
   const [email, setEmail] = useState(user?.email || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [passwordResetState, setPasswordResetState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [lastPasswordEvent, setLastPasswordEvent] = useState<{ event_type: 'password_changed' | 'reset_requested'; occurred_at: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!supabase || !user?.id || !isFullAccessUser) return undefined;
+    setLastPasswordEvent(null);
+    void supabase
+      .from('password_security_events')
+      .select('event_type,occurred_at')
+      .eq('employee_id', user.id)
+      .order('occurred_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setLastPasswordEvent(data as { event_type: 'password_changed' | 'reset_requested'; occurred_at: string });
+      });
+    return () => { cancelled = true; };
+  }, [isFullAccessUser, user?.id]);
 
   // A modal can be reached from a stale UI state, so retain a component-level
   // guard as well as the directory/sidebar guards. This is not an authority
   // bypass; server policy remains the source of truth for data access.
   if (!user || !isFullAccessUser) return null;
+
+  const requestPasswordReset = async () => {
+    if (!supabase || passwordResetState === 'sending') return;
+    setPasswordResetState('sending');
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: window.location.origin });
+      if (error) throw error;
+      const { error: auditError } = await supabase.rpc('record_password_reset_request', { target_employee_id: user.id });
+      if (auditError) throw auditError;
+      setLastPasswordEvent({ event_type: 'reset_requested', occurred_at: new Date().toISOString() });
+      setPasswordResetState('sent');
+    } catch (error) {
+      console.error('Unable to request password reset', error);
+      setPasswordResetState('error');
+    }
+  };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -387,6 +425,34 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({ user
                   )}
                 </div>
               </div>
+
+              <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/70 dark:bg-blue-950/25">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm"><KeyRound className="h-5 w-5" /></span>
+                    <div>
+                      <h4 className="font-bold text-slate-900 dark:text-white">{isRtl ? 'أمان كلمة المرور' : 'Password security'}</h4>
+                      <p className="mt-1 max-w-lg leading-5 text-slate-600 dark:text-slate-300">
+                        {isRtl ? 'لا تُعرض كلمة المرور ولا تُخزَّن هنا. يمكن للإدارة إرسال رابط إعادة ضبط آمن إلى بريد الموظف فقط.' : 'Passwords are never shown or stored here. Administrators can only send a secure reset link to the employee email.'}
+                      </p>
+                      {lastPasswordEvent && <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                        {lastPasswordEvent.event_type === 'password_changed'
+                          ? (isRtl ? 'آخر تغيير لكلمة المرور: ' : 'Last password change: ')
+                          : (isRtl ? 'آخر طلب إعادة ضبط: ' : 'Last reset request: ')}
+                        {new Date(lastPasswordEvent.occurred_at).toLocaleString(isRtl ? 'ar-EG' : 'en-GB')}
+                      </p>}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <button type="button" onClick={() => void requestPasswordReset()} disabled={!supabase || passwordResetState === 'sending'} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60">
+                      <RotateCcw className="h-4 w-4" />
+                      {passwordResetState === 'sending' ? (isRtl ? 'جارٍ الإرسال…' : 'Sending…') : (isRtl ? 'إرسال رابط إعادة ضبط' : 'Send reset link')}
+                    </button>
+                    {passwordResetState === 'sent' && <p className="mt-2 text-center text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">{isRtl ? 'تم إرسال الرابط وتسجيل العملية.' : 'Link sent and action recorded.'}</p>}
+                    {passwordResetState === 'error' && <p className="mt-2 text-center text-[11px] font-semibold text-rose-700 dark:text-rose-300">{isRtl ? 'تعذر إرسال الرابط. تحقق من الاتصال والبريد.' : 'The link could not be sent. Check connectivity and email.'}</p>}
+                  </div>
+                </div>
+              </section>
             </div>
           )}
 
