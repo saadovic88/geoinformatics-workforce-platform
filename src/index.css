@@ -268,6 +268,11 @@
   box-shadow: 0 8px 18px -14px rgb(37 99 235 / .75), inset 0 1px 0 rgb(255 255 255 / .82);
 }
 .login-status-dot { box-shadow: 0 0 0 4px rgb(37 99 235 / .10); }
+.login-access-strip {
+  border: 1px solid rgb(226 232 240 / .92);
+  background: linear-gradient(100deg, rgb(248 250 252 / .96), rgb(239 246 255 / .8));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .88);
+}
 .login-field input {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .78), 0 1px 0 rgb(148 163 184 / .08);
 }
@@ -302,6 +307,24 @@
   transition: transform .24s ease, opacity .24s ease;
 }
 .login-submit:hover::after { transform: scaleX(1.12); opacity: .8; }
+.login-reset-dialog {
+  background:
+    radial-gradient(18rem 10rem at 100% 0%, rgb(219 234 254 / .72), transparent 64%),
+    #fff;
+  animation: login-reset-enter .28s cubic-bezier(.16, 1, .3, 1) both;
+}
+.login-modal-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border: 1px solid rgb(167 243 208 / .8);
+  border-radius: .55rem;
+  background: rgb(236 253 245 / .78);
+  padding: .38rem .5rem;
+  color: #047857;
+  font-size: .65rem;
+  font-weight: 800;
+}
 .login-language-switch {
   box-shadow: 0 12px 24px -18px rgb(15 53 95 / .64), 0 1px 0 rgb(255 255 255 / .9) inset;
 }
@@ -317,6 +340,7 @@
 @keyframes login-orbit-drift { from { transform: translate3d(0, 0, 0) rotate(0deg); } to { transform: translate3d(1.4rem, -.8rem, 0) rotate(6deg); } }
 @keyframes login-route-drift { from { opacity: .38; } to { opacity: .82; } }
 @keyframes login-form-field-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes login-reset-enter { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 html.dark .login-shell {
   background:
@@ -327,10 +351,18 @@ html.dark .login-shell {
 html.dark .login-credential-panel { background: linear-gradient(120deg, rgb(15 29 48 / .99), rgb(20 37 61 / .96)); }
 html.dark .login-language-switch { background-color: rgb(20 34 54 / .9); border-color: rgb(71 85 105 / .85); }
 html.dark .login-brand-chip { background-color: rgb(30 64 175 / .22); border-color: rgb(59 130 246 / .3); color: rgb(191 219 254); }
-html.dark .login-field input { box-shadow: inset 0 1px 0 rgb(148 163 184 / .06); }
+html.dark .login-field input {
+  background-color: #0a1728;
+  border-color: #405976;
+  color: #f1f5f9;
+  box-shadow: inset 0 1px 0 rgb(148 163 184 / .10), 0 1px 0 rgb(2 6 23 / .3);
+}
+html.dark .login-field input:focus { background-color: #0e2036; border-color: #60a5fa; box-shadow: 0 0 0 4px rgb(37 99 235 / .23), inset 0 1px 0 rgb(186 230 253 / .08); }
+html.dark .login-access-strip { border-color: #3d536d; background: linear-gradient(100deg, #102137, #162d49); color: #d7e2f0; }
+html.dark .login-reset-dialog { background: radial-gradient(18rem 10rem at 100% 0%, rgb(30 64 175 / .22), transparent 64%), #0f1d30; }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-form > label, .login-route-line-one, .login-route-line-two { animation: none; }
+  .login-form > label, .login-route-line-one, .login-route-line-two, .login-reset-dialog { animation: none; }
 }
 
 /* Password changes may be opened from a header on a short laptop viewport or
@@ -360,7 +392,21 @@ html.dark .login-field input { box-shadow: inset 0 1px 0 rgb(148 163 184 / .06);
   .platform-shell .leaflet-container { min-height: 15rem; }
   .login-shell { place-items: start center; padding-top: 4.75rem; padding-bottom: 1rem; }
   .login-shell > section { border-radius: 1.25rem; }
+  .login-access-strip { display: flex; width: 100%; justify-content: center; }
 }
+
+/* At narrow phone widths, the encryption cue is useful but repeating both
+   labels makes the header feel cramped. Keep the primary assurance intact. */
+@media (max-width: 399px) {
+  .login-access-strip { justify-content: flex-start; }
+  .login-access-divider,
+  .login-access-detail { display: none; }
+}
+
+/* The install surface is offered after authentication. LoginView and the
+   prompt are siblings, so this prevents an optional PWA callout from covering
+   the first credential action without changing global prompt behavior. */
+.login-shell ~ aside[aria-label] { display: none; }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
