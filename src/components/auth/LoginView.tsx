@@ -19,9 +19,6 @@ export const LoginView: React.FC = () => {
   const [resetError, setResetError] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
   const copy = isRtl ? {
-    platform: 'منصة إدارة القوى العاملة', welcome: 'مساحة عمل دقيقة، لكل يوم عمل.',
-    brand: 'بيئة تشغيل موحّدة للحضور والمهام والأداء.',
-    body: 'تابع حضورك ومهامك وطلباتك في مكان واحد متصل بفرق الشركة.',
     secure: 'اتصال الشركة محمي', signIn: 'استخدم بيانات حسابك المؤسسي للمتابعة.',
     invalid: 'بيانات الدخول غير صحيحة. تحقق من اسم المستخدم أو البريد أو كود الموظف.',
     reset: 'أدخل بريدك المؤسسي لإرسال تعليمات إعادة تعيين كلمة المرور.',
@@ -30,9 +27,6 @@ export const LoginView: React.FC = () => {
     send: 'إرسال التعليمات', footer: 'دخول مؤسسي مُدار لفِرَق جيوإنفورماتيكس',
     access: 'تشفير وحماية وصول', recoveryTitle: 'استعادة الوصول الآمن', recoveryClose: 'إغلاق',
   } : {
-    platform: 'Workforce operations platform', welcome: 'A precise workspace for every working day.',
-    brand: 'One connected workspace for attendance, work and performance.',
-    body: 'Track attendance, assignments and requests in one connected company environment.',
     secure: 'Company connection secured', signIn: 'Use your corporate account details to continue.',
     invalid: 'Invalid credentials. Check your username, email, or employee code.',
     reset: 'Enter your corporate email to receive password reset instructions.',
@@ -84,8 +78,7 @@ export const LoginView: React.FC = () => {
         <div aria-hidden="true" className="login-route-line login-route-line-two" />
         <div aria-hidden="true" className="absolute -end-28 top-20 h-72 w-72 rounded-full border border-sky-300/25" />
         <div aria-hidden="true" className="absolute -start-24 bottom-[-4rem] h-80 w-80 rounded-full border border-blue-300/20" />
-        <div className="relative"><div className="login-panel-status"><span className="login-panel-status-dot" />{copy.secure}</div><div className="mt-12 max-w-sm"><p className="login-panel-kicker text-xs font-bold uppercase tracking-[.18em] text-sky-200">{copy.platform}</p><h1 className="mt-4 text-3xl font-black leading-[1.2] tracking-tight">{copy.welcome}</h1><p className="mt-5 text-sm leading-7 text-slate-300">{copy.body}</p></div></div>
-        <div className="relative border-t border-white/15 pt-6"><div className="flex items-center gap-3 text-sm text-slate-200"><span className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-300"><ShieldCheck className="h-4 w-4" /></span>{copy.access}</div><p className="mt-4 text-xs leading-6 text-slate-400">{copy.brand}</p></div>
+        <div className="relative z-10 flex flex-1 items-center"><div className="login-panel-status"><span className="login-panel-status-dot" />{copy.secure}</div></div>
       </aside>
     </section>
     {forgotModal && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="reset-title"><div className="login-reset-dialog w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex items-start justify-between gap-4"><div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-white shadow-sm"><Mail className="h-5 w-5" /></div><span className="login-modal-seal"><ShieldCheck className="h-3.5 w-3.5" />{copy.secure}</span></div><h3 id="reset-title" className="mt-4 text-lg font-extrabold text-slate-900 dark:text-white">{copy.recoveryTitle}</h3><p className="mt-1.5 text-sm leading-6 text-slate-500 dark:text-slate-300">{copy.reset}</p>{resetSuccess ? <div className="mt-5 flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"><CheckCircle2 className="h-4 w-4 shrink-0" />{copy.resetSuccess}</div> : <form onSubmit={handleForgotSubmit} className="mt-5 space-y-3"><input type="email" required autoComplete="email" placeholder="name@geoinformatics.com" value={resetEmail} onChange={(event) => setResetEmail(event.target.value)} className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400 dark:focus:bg-slate-800 dark:focus:ring-blue-900" />{resetError && <p role="alert" className="text-xs font-semibold text-rose-700 dark:text-rose-300">{resetError}</p>}<div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end"><button type="button" onClick={() => setForgotModal(false)} className="min-h-11 rounded-xl px-4 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">{copy.recoveryClose}</button><button type="submit" disabled={resetBusy} className="min-h-11 rounded-xl bg-[#1558ad] px-4 text-xs font-bold text-white hover:bg-[#10488f] disabled:opacity-50">{resetBusy ? '...' : copy.send}</button></div></form>}</div></div>}

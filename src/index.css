@@ -268,15 +268,11 @@
   display: inline-flex;
   align-items: center;
   gap: .5rem;
-  border: 1px solid rgb(186 230 253 / .18);
-  border-radius: .45rem;
-  background: rgb(7 26 51 / .28);
-  padding: .45rem .6rem;
-  color: rgb(224 242 254 / .92);
-  font-size: .65rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  padding: .4rem .1rem;
+  color: rgb(224 242 254 / .7);
+  font-size: .7rem;
+  font-weight: 500;
+  letter-spacing: .015em;
 }
 .login-panel-status-dot {
   width: .4rem;
