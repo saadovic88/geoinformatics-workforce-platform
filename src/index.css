@@ -852,26 +852,32 @@ html.dark .login-shell .login-reset-dialog { background: #fff; }
   border-radius: inherit;
   background: conic-gradient(
     from var(--login-border-angle),
-    rgb(37 99 235 / .11) 0deg,
-    rgb(37 99 235 / .11) 286deg,
-    rgb(34 211 238 / .24) 310deg,
-    rgb(37 99 235 / .52) 322deg,
-    rgb(34 211 238 / .18) 336deg,
-    rgb(37 99 235 / .11) 350deg,
-    rgb(37 99 235 / .11) 360deg
+    rgb(37 99 235 / .16) 0deg,
+    rgb(37 99 235 / .16) 278deg,
+    rgb(34 211 238 / .36) 302deg,
+    rgb(37 99 235 / .78) 316deg,
+    rgb(34 211 238 / .58) 328deg,
+    rgb(37 99 235 / .18) 344deg,
+    rgb(37 99 235 / .16) 360deg
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  filter: drop-shadow(0 0 3px rgb(34 211 238 / .2));
   pointer-events: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .login-shell > .login-entry-card::before {
-    animation: login-border-travel 14s linear infinite;
+    animation: login-border-travel 7s linear infinite, login-border-pulse 2.4s ease-in-out infinite alternate;
   }
 }
 @keyframes login-border-travel {
+  from { --login-border-angle: 0deg; }
   to { --login-border-angle: 360deg; }
+}
+@keyframes login-border-pulse {
+  from { opacity: .72; }
+  to { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .login-shell > .login-entry-card::before {
