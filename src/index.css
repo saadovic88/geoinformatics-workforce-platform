@@ -829,3 +829,55 @@ html.dark .login-shell .login-reset-dialog { background: #fff; }
 @media (prefers-reduced-motion: reduce) {
   .login-shell > section { animation: none; }
 }
+
+/* A single quiet perimeter keeps the form visually grounded without turning
+   the login into a filled card. The cyan/blue highlight travels slowly around
+   the edge and never crosses the content. */
+@property --login-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.login-shell > .login-entry-card {
+  padding: 1.25rem;
+  border-radius: 1.25rem !important;
+}
+.login-shell > .login-entry-card::before {
+  content: '' !important;
+  display: block !important;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--login-border-angle),
+    rgb(37 99 235 / .11) 0deg,
+    rgb(37 99 235 / .11) 286deg,
+    rgb(34 211 238 / .24) 310deg,
+    rgb(37 99 235 / .52) 322deg,
+    rgb(34 211 238 / .18) 336deg,
+    rgb(37 99 235 / .11) 350deg,
+    rgb(37 99 235 / .11) 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .login-shell > .login-entry-card::before {
+    animation: login-border-travel 14s linear infinite;
+  }
+}
+@keyframes login-border-travel {
+  to { --login-border-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-shell > .login-entry-card::before {
+    background: linear-gradient(135deg, rgb(37 99 235 / .16), rgb(34 211 238 / .23), rgb(37 99 235 / .16));
+  }
+}
+@media (max-width: 639px) {
+  .login-shell > .login-entry-card { padding: 1rem; }
+}
