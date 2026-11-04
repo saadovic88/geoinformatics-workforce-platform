@@ -768,7 +768,9 @@ html.dark #root > main:not(.platform-shell):not(.login-shell) button.text-blue-7
 .login-shell {
   isolation: isolate;
   color-scheme: light;
-  background: #f7f8fa !important;
+  background:
+    radial-gradient(ellipse 38rem 26rem at 50% 4%, rgb(219 234 254 / .46), transparent 72%),
+    #fbfcfd !important;
 }
 .login-shell::before,
 .login-shell::after,
@@ -776,7 +778,23 @@ html.dark #root > main:not(.platform-shell):not(.login-shell) button.text-blue-7
 .login-shell > .login-noise,
 .login-shell > .login-horizon,
 .login-shell > .login-orbit { display: none !important; }
-.login-shell > section { animation: login-enter .28s ease-out both; }
+.login-shell::before {
+  display: block !important;
+  content: "";
+  position: absolute;
+  width: min(34rem, 84vw);
+  height: min(34rem, 84vw);
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(148 163 184 / .09);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3.5rem rgb(148 163 184 / .025);
+  pointer-events: none;
+}
+.login-shell > section { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .login-shell > section { animation: login-enter .28s ease-out both; }
+}
 .login-entry-card {
   padding: 0;
   border: 0 !important;
@@ -787,9 +805,12 @@ html.dark #root > main:not(.platform-shell):not(.login-shell) button.text-blue-7
 .login-entry-card::before,
 .login-entry-card::after { content: none !important; display: none !important; }
 .login-form { animation: none; }
-.login-language-switch { z-index: 2; }
+.login-language-switch { z-index: 2; color: #526174; }
 .login-submit:hover { transform: none; }
-html.dark .login-shell { background: #f7f8fa !important; color: #0f172a; }
+html.dark .login-shell { background:
+  radial-gradient(ellipse 38rem 26rem at 50% 4%, rgb(219 234 254 / .46), transparent 72%),
+  #fbfcfd !important; color: #0f172a; }
+html.dark .login-shell::before { display: block !important; }
 html.dark .login-shell .login-field input {
   color-scheme: light;
   background-color: #fff;
@@ -801,8 +822,9 @@ html.dark .login-shell .login-field input:focus { background-color: #fff; border
 html.dark .login-shell .login-language-switch { background-color: transparent; border-color: transparent; color: #475569; }
 html.dark .login-shell .login-reset-dialog { background: #fff; }
 @media (max-width: 639px) {
-  .login-shell { place-items: center !important; padding: 4.5rem 1rem max(1.25rem, env(safe-area-inset-bottom)) !important; }
+  .login-shell { place-items: center !important; padding: 4rem 1rem max(1.25rem, env(safe-area-inset-bottom)) !important; }
   .login-entry-card { max-width: 25rem; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  .login-shell::before { width: min(30rem, 92vw); height: min(30rem, 92vw); }
 }
 @media (prefers-reduced-motion: reduce) {
   .login-shell > section { animation: none; }
