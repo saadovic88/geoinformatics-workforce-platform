@@ -193,15 +193,6 @@
   transform: translateZ(0);
   box-shadow: 0 36px 95px -48px rgb(15 53 95 / .48), 0 1px 0 rgb(255 255 255 / .8) inset;
 }
-.login-entry-card::after {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  pointer-events: none;
-  border: 1px solid rgb(255 255 255 / .8);
-  border-radius: inherit;
-}
 .login-command-panel {
   background:
     radial-gradient(28rem 23rem at 0% 45%, rgb(14 165 233 / .15), transparent 58%),
@@ -644,28 +635,28 @@ html.dark .platform-shell .leaflet-popup-close-button:hover {
 
 /* Login is rendered outside `.platform-shell`; preserve the same quiet navy
    material system there when a returning employee has dark mode selected. */
-html.dark #root > main:not(.platform-shell) {
+html.dark #root > main:not(.platform-shell):not(.login-shell) {
   background-color: var(--console-canvas) !important;
   color: var(--console-text);
 }
 
-html.dark #root > main:not(.platform-shell) :is(.bg-white, .bg-white\/95, .bg-white\/85, .bg-white\/80, .bg-white\/75):not([class*="dark:bg-"]) {
+html.dark #root > main:not(.platform-shell):not(.login-shell) :is(.bg-white, .bg-white\/95, .bg-white\/85, .bg-white\/80, .bg-white\/75):not([class*="dark:bg-"]) {
   background-color: var(--console-panel);
 }
 
-html.dark #root > main:not(.platform-shell) :is(.bg-slate-50, .bg-blue-50, .bg-rose-50, .bg-emerald-50):not([class*="dark:bg-"]) {
+html.dark #root > main:not(.platform-shell):not(.login-shell) :is(.bg-slate-50, .bg-blue-50, .bg-rose-50, .bg-emerald-50):not([class*="dark:bg-"]) {
   background-color: var(--console-field);
 }
 
-html.dark #root > main:not(.platform-shell) :is(.text-slate-900, .text-slate-800, .text-slate-700):not([class*="dark:text-"]) {
+html.dark #root > main:not(.platform-shell):not(.login-shell) :is(.text-slate-900, .text-slate-800, .text-slate-700):not([class*="dark:text-"]) {
   color: var(--console-text);
 }
 
-html.dark #root > main:not(.platform-shell) :is(.text-slate-600, .text-slate-500, .text-slate-400):not([class*="dark:text-"]) {
+html.dark #root > main:not(.platform-shell):not(.login-shell) :is(.text-slate-600, .text-slate-500, .text-slate-400):not([class*="dark:text-"]) {
   color: var(--console-muted);
 }
 
-html.dark #root > main:not(.platform-shell) :is(.border-slate-100, .border-slate-200, .border-blue-100, .border-blue-200):not([class*="dark:border-"]) {
+html.dark #root > main:not(.platform-shell):not(.login-shell) :is(.border-slate-100, .border-slate-200, .border-blue-100, .border-blue-200):not([class*="dark:border-"]) {
   border-color: var(--console-border);
 }
 
@@ -697,9 +688,9 @@ html.dark #root > main:not(.platform-shell) :is(.border-slate-100, .border-slate
 
 /* The login sits outside `.platform-shell`, so these two high-importance
    controls need explicit dark values instead of inheriting the light palette. */
-html.dark #root > main:not(.platform-shell) header h1 { color: #f5f9ff; }
-html.dark #root > main:not(.platform-shell) button.text-blue-700 { color: #7dd3fc; }
-html.dark #root > main:not(.platform-shell) button.text-blue-700:hover { color: #e0f2fe; }
+html.dark #root > main:not(.platform-shell):not(.login-shell) header h1 { color: #f5f9ff; }
+html.dark #root > main:not(.platform-shell):not(.login-shell) button.text-blue-700 { color: #7dd3fc; }
+html.dark #root > main:not(.platform-shell):not(.login-shell) button.text-blue-700:hover { color: #e0f2fe; }
 
 @media (prefers-reduced-motion: no-preference) {
   .welcome-avatar-wrap { animation: welcome-avatar-enter .56s cubic-bezier(.16, 1, .3, 1) both; }
@@ -771,4 +762,48 @@ html.dark #root > main:not(.platform-shell) button.text-blue-700:hover { color: 
   .page-break {
     page-break-after: always;
   }
+}
+
+/* Minimal centered authentication surface */
+.login-shell {
+  isolation: isolate;
+  color-scheme: light;
+  background: #f7f8fa !important;
+}
+.login-shell::before,
+.login-shell::after,
+.login-shell > .login-grid-texture,
+.login-shell > .login-noise,
+.login-shell > .login-horizon,
+.login-shell > .login-orbit { display: none !important; }
+.login-shell > section { animation: login-enter .28s ease-out both; }
+.login-entry-card {
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+.login-entry-card::before,
+.login-entry-card::after { content: none !important; display: none !important; }
+.login-form { animation: none; }
+.login-language-switch { z-index: 2; }
+.login-submit:hover { transform: none; }
+html.dark .login-shell { background: #f7f8fa !important; color: #0f172a; }
+html.dark .login-shell .login-field input {
+  color-scheme: light;
+  background-color: #fff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: none;
+}
+html.dark .login-shell .login-field input:focus { background-color: #fff; border-color: #2563eb; box-shadow: 0 0 0 2px rgb(219 234 254); }
+html.dark .login-shell .login-language-switch { background-color: transparent; border-color: transparent; color: #475569; }
+html.dark .login-shell .login-reset-dialog { background: #fff; }
+@media (max-width: 639px) {
+  .login-shell { place-items: center !important; padding: 4.5rem 1rem max(1.25rem, env(safe-area-inset-bottom)) !important; }
+  .login-entry-card { max-width: 25rem; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-shell > section { animation: none; }
 }
